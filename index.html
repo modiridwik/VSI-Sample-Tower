@@ -825,45 +825,16 @@ function init(){
 
   // CRITICAL: Do NOT show app or allow any saves until Firebase is loaded
   // This prevents blank data from overwriting real data
-  var lmsg = document.getElementById('loading-msg');
-  if(lmsg) lmsg.textContent = 'Loading your data…';
-
-  if(!S.user) setTimeout(function(){document.getElementById('user-modal').classList.remove('hidden');}, 600);
-
-  // Safety timeout — if Firebase takes >10s, show error with retry
-  var safetyTimer = setTimeout(function(){
-    var lel = document.getElementById('loading');
-    if(lel && !lel.classList.contains('out')){
-      showErr('Taking too long. Check your connection and tap below.');
-    }
-  }, 10000);
-
-  // Load ALL Firebase data first, then and only then show the app
-  loadLoc('sarasota')
-    .then(function(){
-      if(lmsg) lmsg.textContent = 'Loading Pinellas Park…';
-      return loadLoc('pinellas');
-    })
-    .then(function(){
-      clearTimeout(safetyTimer);
-      // Now data is ready — set active customer and show app
-      S.activeCustomer = S.sarasota.customers.length ? S.sarasota.customers[0].id : null;
-      document.getElementById('loading').classList.add('out');
-      applySidebar();
-      renderAll();
-      // Start permanent real-time listeners AFTER initial load
-      
-      if(!S.user) setTimeout(function(){document.getElementById('user-modal').classList.remove('hidden');}, 300);
-      // Backup reminder
-      var lb = localStorage.getItem('vsi_last_backup');
-      if(lb && Math.floor((Date.now()-new Date(lb).getTime())/86400000)>=7)
-        setTimeout(function(){showToast('💾 7 days since last backup — tap 🛡️ to export');}, 3000);
-    })
-    .catch(function(e){
-      clearTimeout(safetyTimer);
-      console.error('Firebase load error:', e);
-      showErr('Could not load data: ' + e.message);
-    });
+  // Load from localStorage instantly — no waiting
+  loadData();
+  S.activeCustomer = S.sarasota.customers.length ? S.sarasota.customers[0].id : null;
+  document.getElementById('loading').classList.add('out');
+  applySidebar();
+  renderAll();
+  if(!S.user) setTimeout(function(){document.getElementById('user-modal').classList.remove('hidden');}, 300);
+  var lb = localStorage.getItem('vsi_last_backup');
+  if(lb && Math.floor((Date.now()-new Date(lb).getTime())/86400000)>=7)
+    setTimeout(function(){showToast('💾 7 days since last backup — tap 🛡️ to export');}, 3000);
 }
 
 function loadLoc(l){ return Promise.resolve(); };
