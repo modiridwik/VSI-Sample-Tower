@@ -464,6 +464,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 // ═══════════════════════════════════════════════════════════════
 var KEY='vsi_v1';
 var VSI_Q='';
+var SB_URL='https://mkmwibwhakvewiyajzeg.supabase.co/rest/v1';
+var SB_KEY='sb_publishable_2BxGeGW40y26eOt30XbwYg_Q0jf0Stc';
 var ALL_COLORS=['ARGENTO VIVO','ARTICO','BLUE LAGOON','CALACATTA GOLD','CASPIAN','CHICAGO','DANBY','DIVINITY','HAZE SJ','LUCE DORATA','LUNA','LUNA PIENA','MAGNIFICO','MAGNIFICO SJ','MAGNUS','MAREA OSCURA','NAPALITANO GOLD','NEBBIA','NERO MARQUINA','ORO LUCENTE','PIENZA','RAGGIO DI SOLE','RIPPLE','RIVIERA GOLD','SABBIA','SIENA GOLD','TAJ DARK','TAJ LIGHT','TERRA BIANCO','TERRA UMBROSSA','VULCANICA','WHITE CHRYSTALLO','WHITE LUX','WHITE TAJ','WINTERCREEK'];
 var DISP=[{id:'dt_r',label:'R-Tower'},{id:'dt_q',label:'Q-Tower'},{id:'dt_l',label:'L-Tower'},{id:'dt_v',label:'V-Tower'},{id:'dt_w',label:'Wall'}];
 var DC=[{id:'l_301',name:'301',emoji:'📌',tier:'b'},{id:'l_abf',name:'ABSOLUTE FLOOR',emoji:'🪟',tier:'b'},{id:'l_adv',name:'ADVANCED',emoji:'⚡',tier:'b'},{id:'l_ag',name:'ALL GRANITE',emoji:'💎',tier:'a'},{id:'l_aio',name:'All in one-',emoji:'🔄',tier:'c'},{id:'l_all',name:'ALLURE',emoji:'✨',tier:'b'},{id:'l_alp',name:'ALPHA-',emoji:'🔤',tier:'c'},{id:'l_ang',name:'ANGELINA',emoji:'👼',tier:'b'},{id:'l_arch',name:'ARCHITECTURAL MARBLE',emoji:'🏗️',tier:'a'},{id:'l_cas',name:'CASTILLO',emoji:'🏰',tier:'b'},{id:'l_cc',name:'CARLOS CASTRO',emoji:'👤',tier:'b'},{id:'l_cut',name:'Cutting EDGE',emoji:'✂️',tier:'c'},{id:'l_dis',name:'DISTINCTIVE',emoji:'🌟',tier:'b'},{id:'l_dnw',name:'D&W',emoji:'🔧',tier:'b'},{id:'l_eag',name:'EAGLE STONE',emoji:'🦅',tier:'a'},{id:'l_eg',name:'EXPORT GRANITE',emoji:'🪨',tier:'a'},{id:'l_em',name:'EUROPEAN MARBLE',emoji:'🏛️',tier:'a'},{id:'l_fc',name:'FINE COUNTERTOPS',emoji:'🔲',tier:'b'},{id:'l_fco',name:'Fine Counters',emoji:'🪞',tier:'c'},{id:'l_ft1',name:'FINAL TOUCH',emoji:'🎯',tier:'b'},{id:'l_ft2',name:'FINAL TOUCH 2',emoji:'🎯',tier:'b'},{id:'l_gal',name:'GALLERIA',emoji:'🖼️',tier:'b'},{id:'l_gue',name:'GUERRING',emoji:'🏗️',tier:'c'},{id:'l_ias',name:'IAS',emoji:'🏢',tier:'b'},{id:'l_ias2',name:'IAS 2',emoji:'🏢',tier:'b'},{id:'l_ink',name:'INKA STONE',emoji:'🪨',tier:'c'},{id:'l_inn',name:'INNOVATIVE',emoji:'💡',tier:'b'},{id:'l_iss',name:'INFINITE STONE SOLUTION',emoji:'♾️',tier:'a'},{id:'l_kev',name:'KEVINSTONE',emoji:'🪵',tier:'b'},{id:'l_nss',name:'NSS',emoji:'🏠',tier:'a'},{id:'l_ome',name:'OMEGA',emoji:'🔱',tier:'b'},{id:'l_phx',name:'PHOENIX',emoji:'🔥',tier:'a'},{id:'l_pla',name:'PLANET STONE',emoji:'🌍',tier:'b'},{id:'l_rig',name:'RIGO',emoji:'📐',tier:'b'},{id:'l_sag',name:'SAG',emoji:'📋',tier:'b'},{id:'l_scd',name:'Suncoast Granite Design',emoji:'🌴',tier:'b'},{id:'l_sea',name:'SEASHORE',emoji:'🌊',tier:'b'},{id:'l_sgm',name:'Sarasota Granite Man',emoji:'👷',tier:'b'},{id:'l_sgq',name:'SARASOTA GRANITE & QUARTZ',emoji:'💠',tier:'a'},{id:'l_sig',name:'SIGNATURE',emoji:'✍️',tier:'a'},{id:'l_skc',name:'SARASOTA KITCHEN COMPANY',emoji:'🍳',tier:'b'},{id:'l_ssrq',name:'SUNMAC SRQ',emoji:'☀️',tier:'b'},{id:'l_tm',name:'T&M',emoji:'🔨',tier:'b'},{id:'l_tsi',name:'TILE AND STONE OF ITALY',emoji:'🇮🇹',tier:'b'},{id:'l_uk',name:'UNIQUE KITCHEN',emoji:'🍽️',tier:'b'},{id:'l_val',name:'VALENCIA',emoji:'🌺',tier:'b'},{id:'l_vf',name:'VISION/FALFAS',emoji:'👁️',tier:'b'},{id:'l_vol',name:'VOLCANO',emoji:'🌋',tier:'b'},{id:'l_wes',name:'WESTONE',emoji:'🧱',tier:'b'},{id:'l_whi',name:'WHITLOW',emoji:'⬜',tier:'c'}];
@@ -482,11 +484,13 @@ function defState(){
 }
 
 // ── STORAGE ──────────────────────────────────────────────────────
+function mkPayload(){return{user:S.user,threshold:S.threshold,sar:{customers:S.sar.customers,items:S.sar.items,warehouse:S.sar.warehouse},pin:{customers:S.pin.customers,items:S.pin.items,warehouse:S.pin.warehouse}};}
 function persist(){
   try{
     var d=document.getElementById('save-dot');if(d)d.className='saving';
-    localStorage.setItem(KEY,JSON.stringify({user:S.user,threshold:S.threshold,sar:{customers:S.sar.customers,items:S.sar.items,warehouse:S.sar.warehouse},pin:{customers:S.pin.customers,items:S.pin.items,warehouse:S.pin.warehouse}}));
-    setTimeout(function(){var d=document.getElementById('save-dot');if(d)d.className='';},400);
+    var p=mkPayload();
+    localStorage.setItem(KEY,JSON.stringify(p));
+    sbSave(p).then(function(){var d=document.getElementById('save-dot');if(d)d.className='';});
   }catch(e){alert('Save failed — storage may be full. Export a backup!');}
 }
 function load(){
@@ -501,6 +505,27 @@ function load(){
     s.pin.customers.forEach(function(c){if(!s.pin.items[c.id])s.pin.items[c.id]=[];});
     return s;
   }catch(e){return defState();}
+}
+function sbHeaders(){return{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json'};}
+function sbSave(payload){
+  return fetch(SB_URL+'/app_data',{method:'POST',headers:Object.assign({},sbHeaders(),{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify([{id:'vsi_v1',data:payload,updated_at:new Date().toISOString()}])}).catch(function(){});
+}
+function sbLoad(){
+  return fetch(SB_URL+'/app_data?id=eq.vsi_v1&select=data&limit=1',{headers:sbHeaders()}).then(function(r){return r.ok?r.json():null;}).then(function(rows){return(rows&&rows.length)?rows[0].data:null;}).catch(function(){return null;});
+}
+function applyRemote(d){
+  if(!d)return;
+  var s=defState();
+  s.user=d.user||null;s.threshold=d.threshold!==undefined?d.threshold:2;
+  if(d.sar){if(d.sar.customers&&d.sar.customers.length)s.sar.customers=d.sar.customers;if(d.sar.items)s.sar.items=d.sar.items;if(d.sar.warehouse)s.sar.warehouse=d.sar.warehouse;}
+  if(d.pin){if(d.pin.customers)s.pin.customers=d.pin.customers;if(d.pin.items)s.pin.items=d.pin.items;if(d.pin.warehouse)s.pin.warehouse=d.pin.warehouse;}
+  s.sar.customers.forEach(function(c){if(!s.sar.items[c.id])s.sar.items[c.id]=mkItems(c.id);});
+  s.pin.customers.forEach(function(c){if(!s.pin.items[c.id])s.pin.items[c.id]=[];});
+  s.activeView=S.activeView;s.activeCustomer=S.activeCustomer;s.showDetail=S.showDetail;s.sbOpen=S.sbOpen;s.loc=S.loc;s.sbLoc=S.sbLoc;s.dashLoc=S.dashLoc;s.whLoc=S.whLoc;s.cbLoc=S.cbLoc;s.cbSearch=S.cbSearch;
+  S=s;
+  localStorage.setItem(KEY,JSON.stringify(d));
+  document.getElementById('thresh').value=S.threshold;
+  updateUserUI();renderAll();
 }
 
 // ── HELPERS ───────────────────────────────────────────────────────
@@ -1049,7 +1074,7 @@ function confettiRain(){var cv=document.getElementById('confetti'),cx=cv.getCont
 document.getElementById('nc-nm').addEventListener('keydown',function(e){if(e.key==='Enter')createCust();if(e.key==='Escape')closeMo('mo-nc');});
 
 // ═══════════════════════════════════════════════════════════════
-// LAUNCH — runs immediately, no loading screen, no Firebase
+// LAUNCH — local-first, then sync from Supabase
 // ═══════════════════════════════════════════════════════════════
 S = load();
 var h = new Date().getHours();
@@ -1064,6 +1089,10 @@ var lb = localStorage.getItem('vsi_last_backup');
 if(lb && Math.floor((Date.now()-new Date(lb).getTime())/86400000)>=7)
   setTimeout(function(){showToast('💾 7 days since last backup — tap 🛡️');},2000);
 persist();
+sbLoad().then(function(d){
+  if(d){applyRemote(d);showToast('☁️ Synced from cloud');}
+  else{sbSave(mkPayload());}
+});
 </script>
 </body>
 </html>
