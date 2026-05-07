@@ -1118,10 +1118,12 @@ if(!S.user) setTimeout(function(){openMo('mo-user');},400);
 var lb = localStorage.getItem('vsi_last_backup');
 if(lb && Math.floor((Date.now()-new Date(lb).getTime())/86400000)>=7)
   setTimeout(function(){showToast('💾 7 days since last backup — tap 🛡️');},2000);
-persist();
 sbLoad().then(function(row){
   if(row){applyRemote(row,false);}
-  else{sbSave(mkPayload());}
+  else{
+    if(!S.saved_at)S.saved_at=new Date().toISOString();
+    sbSave(mkPayload());
+  }
   startPolling();
 });
 </script>
