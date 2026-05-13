@@ -638,7 +638,7 @@ function applyRemote(row,silent){
   if(d.pin){if(d.pin.customers)s.pin.customers=d.pin.customers;if(d.pin.items)s.pin.items=d.pin.items;if(d.pin.warehouse)s.pin.warehouse=d.pin.warehouse;}
   s.sar.customers.forEach(function(c){if(!s.sar.items[c.id])s.sar.items[c.id]=mkItems(c.id);});
   s.pin.customers.forEach(function(c){if(!s.pin.items[c.id])s.pin.items[c.id]=[];});
-  s.activeView=S.activeView;s.activeCustomer=S.activeCustomer;s.showDetail=S.showDetail;s.sbOpen=S.sbOpen;s.loc=S.loc;s.sbLoc=S.sbLoc;s.dashLoc=S.dashLoc;s.whLoc=S.whLoc;s.cbLoc=S.cbLoc;s.cbSearch=S.cbSearch;
+  s.activeView=S.activeView;s.activeCustomer=S.activeCustomer;s.showDetail=S.showDetail;s.sbOpen=window.innerWidth<=600?false:S.sbOpen;s.loc=S.loc;s.sbLoc=S.sbLoc;s.dashLoc=S.dashLoc;s.whLoc=S.whLoc;s.cbLoc=S.cbLoc;s.cbSearch=S.cbSearch;
   S=s;
   localStorage.setItem(KEY,JSON.stringify(d));
   document.getElementById('thresh').value=S.threshold;
@@ -684,7 +684,7 @@ function applySB(){
   if(S.sbOpen){sb.classList.remove('off');if(mob){ov.classList.add('on');mn.classList.add('wide');}else{ov.classList.remove('on');mn.classList.remove('wide');}}
   else{sb.classList.add('off');ov.classList.remove('on');mn.classList.add('wide');}
 }
-function toggleSB(){S.sbOpen=!S.sbOpen;applySB();}
+function toggleSB(){if(window.innerWidth<=600){showView('customers');return;}S.sbOpen=!S.sbOpen;applySB();}
 function closeSB(){S.sbOpen=false;applySB();}
 window.addEventListener('resize',applySB);
 function sbLoc(l){S.sbLoc=l;S.loc=l;document.getElementById('sb-sar').className='sb-loc'+(l==='sar'?' on':'');document.getElementById('sb-pin').className='sb-loc'+(l==='pin'?' on':'');renderSB();}
@@ -1224,6 +1224,7 @@ document.getElementById('nc-nm').addEventListener('keydown',function(e){if(e.key
 // LAUNCH — local-first, then sync from Supabase
 // ═══════════════════════════════════════════════════════════════
 S = load();
+if(window.innerWidth<=600)S.sbOpen=false;
 var h = new Date().getHours();
 document.getElementById('greet').textContent = h<12?'morning':h<17?'afternoon':'evening';
 document.getElementById('gdate').textContent = new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
