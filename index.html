@@ -280,6 +280,93 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .ph h2{font-size:18px;font-weight:800;}
 .ph p{font-size:11px;color:#666;margin-top:2px;}
 #confetti{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9998;}
+
+/* ── MOBILE-FIRST OVERRIDES ──────────────────────────────────── */
+@media(max-width:600px){
+  /* Safe area + bottom nav */
+  :root{--bnh:60px;}
+  #bnav{height:calc(var(--bnh) + env(safe-area-inset-bottom,0px));padding-bottom:env(safe-area-inset-bottom,0px);}
+  body{padding-bottom:calc(var(--bnh) + env(safe-area-inset-bottom,0px));}
+  #toast{bottom:calc(var(--bnh) + env(safe-area-inset-bottom,0px) + 14px);}
+  .bn-ic{font-size:22px;}
+  .bn-lb{font-size:10px;}
+
+  /* Sidebar — full-width drawer, no hover */
+  #sidebar{width:92vw;max-width:380px;}
+  .sb-item{padding:14px 14px;min-height:60px;}
+  .sb-nm{font-size:14px;}
+  .sb-mt{font-size:12px;margin-top:3px;}
+  .sb-em{font-size:18px;}
+  .sb-bdg{min-width:28px;height:24px;font-size:12px;}
+  .sb-acts{display:none!important;}
+  .sb-srch{font-size:15px;padding:11px 13px;}
+  .sb-loc{padding:9px 16px;font-size:13px;}
+  .sb-add{padding:14px;font-size:15px;}
+
+  /* Customer browser cards */
+  .cb-item{padding:15px 14px;min-height:66px;}
+  .cb-nm{font-size:15px;}
+  .cb-sub{font-size:12px;margin-top:3px;}
+  .cb-pct{font-size:13px;}
+
+  /* Customer detail header */
+  .cust-nm{font-size:20px;}
+  .back-btn{font-size:15px;padding:6px 0;margin-bottom:12px;}
+  .cust-acts{overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;padding-bottom:4px;gap:7px;margin-bottom:14px;}
+  .cact{flex-shrink:0;padding:11px 13px;font-size:13px;border-radius:10px;}
+
+  /* Progress bar */
+  .prog-track{height:7px;}
+  .prog-row{font-size:11px;}
+
+  /* Item rows — proper 48pt touch targets */
+  .item{padding:13px 10px;min-height:54px;gap:11px;}
+  .chk{width:32px;height:32px;border-width:2.5px;flex-shrink:0;}
+  .chk.on::after{font-size:14px;}
+  .item-body{min-width:0;}
+  .item-txt{font-size:14px;line-height:1.4;}
+  .item-note-txt{font-size:13px;line-height:1.4;}
+  .item-note-inline{font-size:11px;margin-top:3px;}
+  .item-right{gap:6px;}
+  .status-btn{font-size:15px;padding:6px 9px;height:36px;border-radius:8px;}
+  .note-btn{width:36px;height:36px;font-size:16px;border-radius:8px;}
+  .del-btn{opacity:1!important;width:36px;height:36px;font-size:16px;background:var(--red-light);color:var(--red);border-radius:8px;}
+  .sec-lbl{font-size:11px;margin:14px 0 6px 2px;}
+  .clear-btn{padding:10px 18px;font-size:13px;margin-top:12px;}
+
+  /* Add section */
+  .add-sec{padding:14px;}
+  .add-row input{font-size:16px;padding:12px 13px;}
+  .abtn{padding:12px 15px;font-size:18px;}
+
+  /* Tower/display chips */
+  .tw-chip{padding:8px 14px;font-size:13px;}
+
+  /* Stat grid */
+  .stat{padding:14px;}
+  .stat-val{font-size:24px;}
+  .stat-lbl{font-size:10px;}
+
+  /* Warehouse */
+  .wh-item{padding:11px 0;}
+  .wh-color{font-size:14px;}
+  .wh-btn{width:36px;height:36px;font-size:18px;}
+  .wh-inp{width:56px;font-size:15px;padding:5px 4px;}
+
+  /* Modals — bottom sheet slide-up */
+  .mo{align-items:flex-end;padding:0;}
+  .modal{border-radius:20px 20px 0 0!important;max-width:100%!important;width:100%;
+    padding:22px 18px;
+    padding-bottom:calc(22px + env(safe-area-inset-bottom,0px));
+    animation:mUp 0.3s cubic-bezier(0.32,0.72,0,1);}
+  @keyframes mUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  .modal h3{font-size:18px;margin-bottom:16px;}
+  .modal input,.modal select,.modal textarea{font-size:16px;padding:12px 13px;margin-bottom:10px;}
+  .modal-btns button{padding:13px;font-size:15px;}
+  .smenu{right:0;left:0;bottom:0;top:auto;position:fixed;border-radius:16px 16px 0 0;min-width:unset;z-index:600;
+    padding-bottom:env(safe-area-inset-bottom,0px);}
+  .smenu-opt{padding:15px 18px;font-size:15px;}
+}
 </style>
 </head>
 <body>
@@ -753,13 +840,16 @@ function renderDetail(){
     '<span class="cust-upd">🕐 '+upd+'</span>'+(c.updatedBy?'<span class="cust-by">by '+c.updatedBy+'</span>':'')+
     (days!==null&&days>30?'<span class="stale-w">⚠️ '+days+'d overdue</span>':'')+
     '</div><div class="cust-acts">'+
-    '<button class="cact" style="background:var(--gold);color:white" onclick="openMo(\'mo-visit\')">📋 Log Visit</button>'+
+    '<button class="cact" style="background:var(--gold);color:white" onclick="openMo(\'mo-visit\')">📋 Visit</button>'+
     '<button class="cact" style="background:var(--blue);color:white" onclick="openPhotoUp()">📷 Photo</button>'+
     '<button class="cact" style="background:var(--teal);color:white" onclick="emailCust()">✉️ Email</button>'+
+    '<button class="cact" style="background:var(--stone-mid)" onclick="openEC(\''+l+'\',\''+esc(c.id)+'\')">✏️ Edit</button>'+
+    '<button class="cact" style="background:'+(c.starred?'var(--gold)':'var(--stone-mid)')+';color:'+(c.starred?'white':'inherit')+'" onclick="toggleStar(\''+l+'\',\''+esc(c.id)+'\');renderDetail()">'+( c.starred?'★ Starred':'☆ Star')+'</button>'+
+    '<button class="cact" style="background:var(--stone-mid)" onclick="openMo(\'mo-bulk\')">⚡ Bulk</button>'+
     '<button class="cact" style="background:var(--stone-mid)" onclick="copyList()">📋 Copy</button>'+
     '<button class="cact" style="background:var(--charcoal);color:white" onclick="window.print()">🖨️ Print</button>'+
-    '<button class="cact" style="background:var(--stone-mid)" onclick="openMo(\'mo-bulk\')">⚡ Bulk</button>'+
     '<button class="cact" style="background:var(--purple-light);color:var(--purple)" onclick="openRestoreMo()">↩ Restore</button>'+
+    '<button class="cact" style="background:var(--red-light);color:var(--red)" onclick="delCust(\''+l+'\',\''+esc(c.id)+'\',\''+esc(c.name)+'\')">🗑 Delete</button>'+
     '</div>';
   h+='<div class="photo-wrap">';
   if(c.photo){h+='<img src="'+c.photo+'" alt="Tower" onclick="openPhotoUp()" title="Tap to update">';if(c.photoDate)h+='<div class="photo-meta"><span>'+new Date(c.photoDate).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+'</span><span>'+(c.photoBy||'')+'</span></div>';h+='<button class="photo-del" onclick="delPhoto()">✕</button>';}
