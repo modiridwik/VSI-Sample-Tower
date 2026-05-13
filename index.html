@@ -355,6 +355,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <h3>Edit Customer</h3>
     <input type="text" id="ec-nm" placeholder="Name…" maxlength="50">
     <select id="ec-tier"><option value="a">🔴 A — Priority</option><option value="b">🟠 B — Regular</option><option value="c">🟣 C — Occasional</option></select>
+    <select id="ec-loc"><option value="sar">📍 Sarasota</option><option value="pin">📍 Pinellas Park</option></select>
     <div class="modal-btns"><button class="m-cancel" onclick="closeMo('mo-ec')">Cancel</button><button class="m-ok" onclick="saveEC()">Save</button></div>
   </div>
 </div>
@@ -942,11 +943,20 @@ function delCust(l,cid,name){
   if(S.activeCustomer===cid){S.activeCustomer=S[l].customers.length?S[l].customers[0].id:null;S.showDetail=false;}
   persist();renderAll();showToast('Customer deleted 🗑');
 }
-function openEC(l,cid){ET={l:l,cid:cid};var c=getCust(l,cid);if(!c)return;document.getElementById('ec-nm').value=c.name;document.getElementById('ec-tier').value=c.tier||'b';openMo('mo-ec');}
+function openEC(l,cid){ET={l:l,cid:cid};var c=getCust(l,cid);if(!c)return;document.getElementById('ec-nm').value=c.name;document.getElementById('ec-tier').value=c.tier||'b';document.getElementById('ec-loc').value=l;openMo('mo-ec');}
 function saveEC(){
   if(!ET)return;var c=getCust(ET.l,ET.cid);if(!c)return;
   c.name=document.getElementById('ec-nm').value.trim()||c.name;c.tier=document.getElementById('ec-tier').value;
-  persist();renderSB();if(S.showDetail)renderDetail();else renderBrowser();closeMo('mo-ec');showToast('Updated ✏️');ET=null;
+  var newLoc=document.getElementById('ec-loc').value;
+  if(newLoc!==ET.l){
+    S[newLoc].customers.push(c);
+    S[newLoc].items[c.id]=S[ET.l].items[c.id]||[];
+    S[ET.l].customers=S[ET.l].customers.filter(function(x){return x.id!==c.id;});
+    delete S[ET.l].items[c.id];
+    if(S.activeCustomer===c.id){S.loc=newLoc;S.sbLoc=newLoc;}
+    showToast('Moved to '+(newLoc==='sar'?'Sarasota':'Pinellas Park')+' ✏️');
+  }else{showToast('Updated ✏️');}
+  persist();renderAll();closeMo('mo-ec');ET=null;
 }
 function createCust(){
   var name=document.getElementById('nc-nm').value.trim();if(!name)return;
