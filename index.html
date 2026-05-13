@@ -50,7 +50,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 #overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:149;}
 #overlay.on{display:block;}
 #sidebar{width:var(--sbw);background:var(--white);border-right:1px solid var(--stone-dark);position:fixed;top:var(--tbh);left:0;bottom:0;z-index:150;display:flex;flex-direction:column;transition:transform 0.28s cubic-bezier(0.4,0,0.2,1);}
-#sidebar.off{transform:translateX(calc(-1 * var(--sbw)));}
+#sidebar.off{transform:translateX(-100%);}
 .sb-top{padding:10px 10px 8px;border-bottom:1px solid var(--stone-mid);}
 .sb-row{display:flex;gap:5px;align-items:center;margin-bottom:6px;}
 .sb-srch{flex:1;padding:7px 10px;border:1px solid var(--stone-dark);border-radius:var(--rs);font-family:-apple-system,sans-serif;font-size:13px;outline:none;color:var(--charcoal);background:var(--stone);}
