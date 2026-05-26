@@ -466,6 +466,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <button class="bk-btn stone" onclick="document.getElementById('restore-file').click()"><span class="bk-icon">📤</span><div><div>Restore from Backup</div><div class="bk-desc">Load a .json backup file</div></div></button>
     <input type="file" id="restore-file" accept=".json" style="display:none" onchange="restoreBackup(this)">
     <div id="bk-st" class="bk-st"></div>
+    <div style="margin-top:14px;border-top:1px solid var(--stone);padding-top:12px;">
+      <div style="font-size:12px;font-weight:700;color:var(--charcoal);margin-bottom:8px;">🕐 Auto-Snapshots <span style="font-weight:400;color:var(--charcoal-light);font-size:11px;">(saved automatically every hour)</span></div>
+      <div id="snap-list" style="max-height:200px;overflow-y:auto;"></div>
+      <div id="snap-empty" style="font-size:11px;color:var(--charcoal-light);padding:8px 0;display:none;">No snapshots yet — they'll appear after your first hour of use.</div>
+    </div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;">
       <span style="font-size:11px;color:var(--charcoal-light)" id="bk-last">Last backup: Never</span>
       <button class="m-cancel" style="padding:7px 14px" onclick="closeMo('mo-backup')">Close</button>
@@ -571,6 +576,44 @@ function defState(){
   return o;
 }
 
+// ── INDEXEDDB (secondary snapshot store, survives localStorage clear) ──
+var IDB_DB=null;
+function idbInit(cb){
+  if(IDB_DB)return cb(IDB_DB);
+  try{
+    var req=indexedDB.open('vsi_db',1);
+    req.onupgradeneeded=function(e){var db=e.target.result;if(!db.objectStoreNames.contains('snaps'))db.createObjectStore('snaps',{keyPath:'ts'});};
+    req.onsuccess=function(e){IDB_DB=e.target.result;cb(IDB_DB);};
+    req.onerror=function(){cb(null);};
+  }catch(e){cb(null);}
+}
+function idbPut(entry){idbInit(function(db){if(!db)return;try{db.transaction('snaps','readwrite').objectStore('snaps').put(entry);}catch(e){}});}
+function idbGetAll(cb){
+  idbInit(function(db){
+    if(!db)return cb([]);
+    try{
+      var req=db.transaction('snaps','readonly').objectStore('snaps').getAll();
+      req.onsuccess=function(){
+        var all=(req.result||[]).sort(function(a,b){return a.ts<b.ts?1:-1;});
+        if(all.length>10){
+          var tx=db.transaction('snaps','readwrite');
+          all.slice(10).forEach(function(s){try{tx.objectStore('snaps').delete(s.ts);}catch(e){}});
+          all=all.slice(0,10);
+        }
+        cb(all);
+      };
+      req.onerror=function(){cb([]);};
+    }catch(e){cb([]);}
+  });
+}
+function idbRestore(ts){
+  idbInit(function(db){
+    if(!db)return;
+    var req=db.transaction('snaps','readonly').objectStore('snaps').get(ts);
+    req.onsuccess=function(){applySnapData(req.result);};
+  });
+}
+
 // ── STORAGE ──────────────────────────────────────────────────────
 var SB_SAVE_PENDING=false;
 var OFFLINE_Q=null;
@@ -578,11 +621,67 @@ window.addEventListener('online',function(){
   if(OFFLINE_Q){showToast('🔄 Back online — syncing...');sbSave(OFFLINE_Q).then(function(ok){if(ok){OFFLINE_Q=null;showToast('☁️ Changes synced!');}});}
 });
 function mkPayload(){return{saved_at:S.saved_at,user:S.user,threshold:S.threshold,sar:{customers:S.sar.customers,items:S.sar.items,warehouse:S.sar.warehouse},pin:{customers:S.pin.customers,items:S.pin.items,warehouse:S.pin.warehouse}};}
+var SNAP_KEY='vsi_snaps';
+var LAST_SNAP_TS=0;
+function takeSnap(label){
+  try{
+    var n=0;['sar','pin'].forEach(function(l){Object.keys(S[l].items||{}).forEach(function(k){(S[l].items[k]||[]).forEach(function(i){if(i.done||i.status!=='none')n++;});});});
+    if(n===0)return;
+    var now=Date.now();
+    if(!label&&now-LAST_SNAP_TS<3600000)return;
+    LAST_SNAP_TS=now;
+    var snaps=[];try{snaps=JSON.parse(localStorage.getItem(SNAP_KEY)||'[]');}catch(e){}
+    var entry={ts:new Date().toISOString(),label:label||'auto',items:n,data:mkPayload()};
+    snaps.unshift(entry);
+    if(snaps.length>10)snaps=snaps.slice(0,10);
+    localStorage.setItem(SNAP_KEY,JSON.stringify(snaps));
+    idbPut(entry);
+  }catch(e){}
+}
+function renderSnapList(){
+  var list=document.getElementById('snap-list'),empty=document.getElementById('snap-empty');
+  if(!list)return;
+  var lsSnaps=[];try{lsSnaps=JSON.parse(localStorage.getItem(SNAP_KEY)||'[]');}catch(e){}
+  idbGetAll(function(idbSnaps){
+    var seen={};lsSnaps.forEach(function(s){seen[s.ts]=true;});
+    var combined=lsSnaps.slice();
+    idbSnaps.forEach(function(s){if(!seen[s.ts]){s._idb=true;combined.push(s);}});
+    combined.sort(function(a,b){return a.ts<b.ts?1:-1;});
+    if(!combined.length){list.innerHTML='';empty.style.display='block';return;}
+    empty.style.display='none';
+    list.innerHTML=combined.map(function(s,i){
+      var age=Math.round((Date.now()-new Date(s.ts).getTime())/60000);
+      var ageStr=age<60?age+'m ago':age<1440?Math.floor(age/60)+'h ago':Math.floor(age/1440)+'d ago';
+      var lbl=s.label==='pre-sync'?'⚡ before sync':s.label==='auto'?'🕐 auto':'📌 '+s.label;
+      var src=s._idb?'<span style="font-size:10px;background:#E8F5E9;color:#2A6B5F;border-radius:3px;padding:1px 4px;margin-left:4px;">IDB</span>':'<span style="font-size:10px;background:var(--stone);color:var(--charcoal-light);border-radius:3px;padding:1px 4px;margin-left:4px;">local</span>';
+      var btn=s._idb?'onclick="idbRestore(\''+s.ts+'\')"':'onclick="restoreSnap(\''+s.ts+'\')"';
+      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 8px;border-radius:6px;margin-bottom:4px;background:var(--stone);">'+
+        '<div><div style="font-size:12px;font-weight:600;">'+lbl+src+' <span style="font-weight:400;color:var(--charcoal-light);">'+ageStr+'</span></div>'+
+        '<div style="font-size:11px;color:var(--charcoal-light);">'+new Date(s.ts).toLocaleString()+' · '+s.items+' items</div></div>'+
+        '<button '+btn+' style="padding:5px 10px;font-size:11px;background:var(--teal);color:white;border:none;border-radius:5px;cursor:pointer;font-weight:700;">Restore</button></div>';
+    }).join('');
+  });
+}
+function applySnapData(snap){
+  if(!snap)return;
+  if(!confirm('Restore snapshot from '+new Date(snap.ts).toLocaleString()+'?\nThis will replace all current data.'))return;
+  var d=snap.data;
+  if(d.sar){S.sar.customers=d.sar.customers||S.sar.customers;S.sar.items=d.sar.items||{};S.sar.warehouse=d.sar.warehouse||{};}
+  if(d.pin){S.pin.customers=d.pin.customers||[];S.pin.items=d.pin.items||{};S.pin.warehouse=d.pin.warehouse||{};}
+  S.threshold=d.threshold!==undefined?d.threshold:S.threshold;
+  persist();renderAll();renderSnapList();bkSt('✅ Snapshot restored!',true);
+}
+function restoreSnap(ts){
+  var snaps=[];try{snaps=JSON.parse(localStorage.getItem(SNAP_KEY)||'[]');}catch(e){}
+  var snap=snaps.filter(function(s){return s.ts===ts;})[0];
+  if(snap)applySnapData(snap);
+}
 function persist(){
   try{
     var dot=document.getElementById('save-dot');if(dot)dot.className='saving';
     S.saved_at=new Date().toISOString();
     var p=mkPayload();
+    takeSnap();
     localStorage.setItem(KEY,JSON.stringify(p));
     SB_SAVE_PENDING=true;
     sbSave(p).then(function(ok){
@@ -609,8 +708,18 @@ function load(){
 }
 function sbHeaders(){return{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json'};}
 function sbSave(payload){
+  sbBackup(payload);
   return fetch(SB_URL+'/app_data',{method:'POST',headers:Object.assign({},sbHeaders(),{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify([{id:'vsi_v1',data:payload,updated_at:payload.saved_at}])})
   .then(function(r){return r.ok;}).catch(function(){return false;});
+}
+var SB_BAK_KEY='vsi_last_cloud_bak';
+function sbBackup(payload){
+  try{
+    var last=parseInt(localStorage.getItem(SB_BAK_KEY)||'0',10);
+    if(Date.now()-last<86400000)return;
+    localStorage.setItem(SB_BAK_KEY,String(Date.now()));
+    fetch(SB_URL+'/app_data',{method:'POST',headers:Object.assign({},sbHeaders(),{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify([{id:'vsi_bak',data:payload,updated_at:payload.saved_at}])}).catch(function(){});
+  }catch(e){}
 }
 function sbLoad(){
   return fetch(SB_URL+'/app_data?id=eq.vsi_v1&select=data,updated_at&limit=1',{headers:sbHeaders()})
@@ -632,6 +741,16 @@ function applyRemote(row,silent){
   var remCust=(d.sar&&d.sar.customers?d.sar.customers.length:0)+(d.pin&&d.pin.customers?d.pin.customers.length:0);
   var locCust=S.sar.customers.length+S.pin.customers.length;
   if(remCust===0&&locCust>0)return;
+  function countItems(data){var n=0;var locs=['sar','pin'];locs.forEach(function(l){var items=(data[l]&&data[l].items)||{};Object.keys(items).forEach(function(k){(items[k]||[]).forEach(function(i){if(i.done||i.status!=='none')n++;});});});return n;}
+  var remItems=countItems(d);
+  var locItems=countItems(S);
+  if(remItems===0&&locItems>0){if(!S.saved_at)S.saved_at=new Date().toISOString();sbSave(mkPayload());return;}
+  if(locItems>5&&remItems<locItems*0.7){
+    if(!confirm('⚠️ Cloud data has '+remItems+' items tracked, but this device has '+locItems+'.\n\nApplying will reduce your data. A snapshot will be saved first.\n\nApply cloud version anyway?')){
+      if(!S.saved_at)S.saved_at=new Date().toISOString();sbSave(mkPayload());return;
+    }
+  }
+  LAST_SNAP_TS=0;takeSnap('pre-sync');
   var s=defState();
   s.user=d.user||null;s.threshold=d.threshold!==undefined?d.threshold:2;s.saved_at=d.saved_at||row.updated_at||null;
   if(d.sar){if(d.sar.customers&&d.sar.customers.length)s.sar.customers=d.sar.customers;if(d.sar.items)s.sar.items=d.sar.items;if(d.sar.warehouse)s.sar.warehouse=d.sar.warehouse;}
@@ -668,7 +787,7 @@ function esc(s){return s.replace(/'/g,"\\'");}
 // ── MODALS ────────────────────────────────────────────────────────
 function openMo(id){
   var el=document.getElementById(id);if(!el)return;el.classList.add('on');
-  if(id==='mo-backup'){var lb=localStorage.getItem('vsi_last_backup');var lbEl=document.getElementById('bk-last');if(lbEl)lbEl.textContent=lb?'Last backup: '+new Date(lb).toLocaleString():'Last backup: Never';}
+  if(id==='mo-backup'){var lb=localStorage.getItem('vsi_last_backup');var lbEl=document.getElementById('bk-last');if(lbEl)lbEl.textContent=lb?'Last backup: '+new Date(lb).toLocaleString():'Last backup: Never';renderSnapList();}
 }
 function closeMo(id){var el=document.getElementById(id);if(el)el.classList.remove('on');}
 document.addEventListener('click',function(e){if(e.target.classList.contains('mo'))e.target.classList.remove('on');});
@@ -1234,13 +1353,16 @@ applySB();
 renderAll();
 if(!S.user) setTimeout(function(){openMo('mo-user');},400);
 var lb = localStorage.getItem('vsi_last_backup');
-if(lb && Math.floor((Date.now()-new Date(lb).getTime())/86400000)>=7)
-  setTimeout(function(){showToast('💾 7 days since last backup — tap 🛡️');},2000);
+var daysSinceBak = lb ? Math.floor((Date.now()-new Date(lb).getTime())/86400000) : 999;
+var realItemCount = (function(){var n=0;['sar','pin'].forEach(function(l){Object.keys(S[l].items||{}).forEach(function(k){(S[l].items[k]||[]).forEach(function(i){if(i.done||i.status!=='none')n++;});});});return n;})();
+if(daysSinceBak>=7 && realItemCount>0){
+  setTimeout(function(){exportJSON();showToast('💾 Auto-backup downloaded ('+daysSinceBak+' days since last)');},3000);
+}
 sbLoad().then(function(row){
   if(row){applyRemote(row,false);}
   else{
-    if(!S.saved_at)S.saved_at=new Date().toISOString();
-    sbSave(mkPayload());
+    var hasRealData=S.saved_at||(function(){var n=0;['sar','pin'].forEach(function(l){Object.keys(S[l].items||{}).forEach(function(k){(S[l].items[k]||[]).forEach(function(i){if(i.done||i.status!=='none')n++;});});});return n;})()>0;
+    if(hasRealData){if(!S.saved_at)S.saved_at=new Date().toISOString();sbSave(mkPayload());}
   }
   startPolling();
 });
