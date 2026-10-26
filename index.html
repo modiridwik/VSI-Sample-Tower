@@ -565,7 +565,8 @@ function mkItems(p){return ALL_COLORS.map(function(c,i){return{id:p+'_c'+i,text:
 function mkWH(){var o={};ALL_COLORS.forEach(function(c){o[c]=0;});return o;}
 function normalizeCollection(data){
   if(!data||typeof data!=='object')return false;
-  var changed=data.catalog_version!==CATALOG_VERSION;
+  var migrating=data.catalog_version!==CATALOG_VERSION;
+  var changed=migrating;
   ['sar','pin'].forEach(function(l){
     var loc=data[l];if(!loc||typeof loc!=='object')return;
     if(!loc.items||typeof loc.items!=='object'||Array.isArray(loc.items)){loc.items={};changed=true;}
@@ -577,7 +578,7 @@ function normalizeCollection(data){
       arr.forEach(function(item){
         if(!item||item.type!=='color')return;
         var old=String(item.text||'').trim(),name=COLOR_ALIASES[old]||old;
-        if(!COLOR_SET[name]){item.type='legacy';item.legacyReason='not in active collection';item.originalText=item.originalText||old;changed=true;return;}
+        if(!COLOR_SET[name]){if(migrating){item.type='legacy';item.legacyReason='not in active collection';item.originalText=item.originalText||old;changed=true;}return;}
         if(seen[name]){item.type='legacy';item.legacyReason='duplicate after catalog update';item.originalText=item.originalText||old;changed=true;return;}
         seen[name]=true;
         if(old!==name){item.originalText=item.originalText||old;item.text=name;changed=true;}
@@ -863,7 +864,8 @@ function saveSnap(cid){
   SNAPS[l][cid].unshift({ts:new Date().toISOString(),by:S.user||'Unknown',data:JSON.parse(JSON.stringify(arr))});
   if(SNAPS[l][cid].length>3)SNAPS[l][cid].pop();
 }
-function esc(s){return s.replace(/'/g,"\\'");}
+function esc(s){return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/\r/g,'\\r').replace(/\n/g,'\\n').replace(/'/g,"\\'").replace(/&/g,'&amp;').replace(/\"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function html(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;').replace(/'/g,'&#39;');}
 
 // ── MODALS ────────────────────────────────────────────────────────
 function openMo(id){
@@ -874,7 +876,7 @@ function closeMo(id){var el=document.getElementById(id);if(el)el.classList.remov
 document.addEventListener('click',function(e){if(e.target.classList.contains('mo'))e.target.classList.remove('on');});
 
 // ── USER ──────────────────────────────────────────────────────────
-function setUser(n){S.user=n;closeMo('mo-user');updateUserUI();showToast('Welcome, '+n+'! 👋');}
+function setUser(n){S.user=n;persist();closeMo('mo-user');updateUserUI();showToast('Welcome, '+n+'! 👋');}
 function updateUserUI(){var a=document.getElementById('tu-av'),n=document.getElementById('tu-nm');if(S.user){a.textContent=S.user.charAt(0);n.textContent=S.user;}else{a.textContent='?';n.textContent='Sign in';}}
 
 // ── SIDEBAR ───────────────────────────────────────────────────────
@@ -905,8 +907,8 @@ function renderSB(){
     var tc=c.tier==='a'?'var(--red)':c.tier==='c'?'var(--purple)':'var(--orange)';
     var d=document.createElement('div');
     d.className='sb-item'+(isActive?' on':'')+(isStale&&!isActive?' stale':'');
-    d.innerHTML='<div style="width:7px;height:7px;border-radius:50%;background:'+tc+';flex-shrink:0"></div><span class="sb-em">'+c.emoji+'</span>'+
-      '<div class="sb-inf"><div class="sb-nm">'+(c.starred?'★ ':'')+c.name+'</div><div class="sb-mt">'+placed+'/'+total+' placed'+(days<999?' · '+days+'d':'')+'</div></div>'+
+    d.innerHTML='<div style="width:7px;height:7px;border-radius:50%;background:'+tc+';flex-shrink:0"></div><span class="sb-em">'+html(c.emoji)+'</span>'+
+      '<div class="sb-inf"><div class="sb-nm">'+(c.starred?'★ ':'')+html(c.name)+'</div><div class="sb-mt">'+placed+'/'+total+' placed'+(days<999?' · '+days+'d':'')+'</div></div>'+
       '<span class="sb-bdg'+(placed===0?' z':'')+'">'+placed+'</span>'+
       '<div class="sb-acts"><button class="sb-act str" onclick="event.stopPropagation();toggleStar(\''+l+'\',\''+esc(c.id)+'\')">'+( c.starred?'★':'☆')+'</button>'+
       '<button class="sb-act" onclick="event.stopPropagation();openEC(\''+l+'\',\''+esc(c.id)+'\')">✏️</button>'+
@@ -935,7 +937,7 @@ function renderDash(){
   var placed=allI.filter(function(i){return i.done&&i.type==='color';}).length;
   var total=allI.filter(function(i){return i.type==='color';}).length;
   var active=cs.filter(function(c){return(S[l].items[c.id]||[]).some(function(i){return i.done&&i.type==='color';});}).length;
-  var ordCnt=allI.filter(function(i){return i.status==='ordered';}).length;
+  var ordCnt=allI.filter(function(i){return i.type==='color'&&i.status==='ordered';}).length;
   var low=ALL_COLORS.filter(function(c){return(wh[c]||0)<=S.threshold;});
   var staleCs=cs.filter(function(c){return c.updated&&Math.floor((now-new Date(c.updated).getTime())/86400000)>30;});
   var ll=l==='sar'?'Sarasota':'Pinellas Park';
@@ -947,18 +949,26 @@ function renderDash(){
   document.getElementById('d-stats').innerHTML=
     st('Customers','',cs.length,'in '+ll)+st('Active','teal',active,'with samples')+
     st('Colors Out','',placed,'of '+total)+st('Low Stock','red',low.length,'at threshold');
-  var cm={};ALL_COLORS.forEach(function(c){cm[c]=0;});
-  allI.forEach(function(i){if(i.done&&i.type==='color'&&cm[i.text]!==undefined)cm[i.text]++;});
-  var mm={};ALL_COLORS.forEach(function(c){mm[c]=cs.length-cm[c];});
+  var cm={},om={};ALL_COLORS.forEach(function(c){cm[c]=0;om[c]=0;});
+  cs.forEach(function(customer){
+    var states={};
+    (S[l].items[customer.id]||[]).forEach(function(i){
+      if(i.type!=='color'||cm[i.text]===undefined)return;
+      if(i.done)states[i.text]='placed';
+      else if(i.status==='ordered'&&states[i.text]!=='placed')states[i.text]='ordered';
+    });
+    Object.keys(states).forEach(function(color){if(states[color]==='placed')cm[color]++;else if(states[color]==='ordered')om[color]++;});
+  });
+  var mm={};ALL_COLORS.forEach(function(c){mm[c]=Math.max(0,cs.length-cm[c]-om[c]);});
   var topMis=ALL_COLORS.slice().sort(function(a,b){return mm[b]-mm[a];}).slice(0,6);
-  var ai='';topMis.forEach(function(c){var s=esc(c);ai+='<div class="act-row" onclick="showColorMo(\''+l+'\',\''+s+'\')"><div><div class="act-name">'+c+'</div><div class="act-sub">Missing from '+mm[c]+' customers</div></div><span class="tag red">'+mm[c]+' ›</span></div>';});
+  var ai='';topMis.forEach(function(c){var s=esc(c);ai+='<div class="act-row" onclick="showColorMo(\''+l+'\',\''+s+'\')"><div><div class="act-name">'+html(c)+'</div><div class="act-sub">Missing from '+mm[c]+' customers</div></div><span class="tag red">'+mm[c]+' ›</span></div>';});
   document.getElementById('d-action').innerHTML=ai||'<span style="font-size:12px;color:var(--teal);font-weight:600">✓ All colors well distributed!</span>';
   document.getElementById('act-loc').textContent='· '+ll;
   var stl=cs.map(function(c){var d=c.updated?Math.floor((now-new Date(c.updated).getTime())/86400000):999;return{c:c,days:d};}).filter(function(x){return x.days>30;}).sort(function(a,b){return b.days-a.days;}).slice(0,6);
-  var si='';stl.forEach(function(x){var s=esc(x.c.id);si+='<div class="act-row" onclick="openCust(\''+l+'\',\''+s+'\')"><div><div class="act-name">'+x.c.emoji+' '+x.c.name+'</div><div class="act-sub">'+(x.days===999?'Never updated':x.days+'d ago')+'</div></div><span class="tag orange">Visit needed ›</span></div>';});
+  var si='';stl.forEach(function(x){var s=esc(x.c.id);si+='<div class="act-row" onclick="openCust(\''+l+'\',\''+s+'\')"><div><div class="act-name">'+html(x.c.emoji)+' '+html(x.c.name)+'</div><div class="act-sub">'+(x.days===999?'Never updated':x.days+'d ago')+'</div></div><span class="tag orange">Visit needed ›</span></div>';});
   document.getElementById('d-stale').innerHTML=si||'<span style="font-size:12px;color:var(--teal);font-weight:600">✓ All customers up to date!</span>';
   document.getElementById('stale-loc').textContent='· '+ll;
-  var oi='';cs.forEach(function(c){var ord=(S[l].items[c.id]||[]).filter(function(i){return i.status==='ordered';});if(ord.length){var s=esc(c.id);oi+='<div class="act-row" onclick="openCust(\''+l+'\',\''+s+'\')"><div><div class="act-name">'+c.emoji+' '+c.name+'</div><div class="act-sub">'+ord.map(function(i){return i.text;}).join(', ')+'</div></div><span class="tag blue">'+ord.length+' ›</span></div>';}});
+  var oi='';cs.forEach(function(c){var ord=(S[l].items[c.id]||[]).filter(function(i){return i.type==='color'&&i.status==='ordered';});if(ord.length){var s=esc(c.id);oi+='<div class="act-row" onclick="openCust(\''+l+'\',\''+s+'\')"><div><div class="act-name">'+html(c.emoji)+' '+html(c.name)+'</div><div class="act-sub">'+ord.map(function(i){return html(i.text);}).join(', ')+'</div></div><span class="tag blue">'+ord.length+' ›</span></div>';}});
   document.getElementById('d-ordered').innerHTML=oi||'<span style="font-size:12px;color:var(--charcoal-light)">No orders pending</span>';
   document.getElementById('ord-loc').textContent='· '+ll;
   var sorted=ALL_COLORS.slice().sort(function(a,b){return cm[b]-cm[a];}).slice(0,8);var maxV=cm[sorted[0]]||1;var tc='';
@@ -973,13 +983,13 @@ function st(lbl,cls,val,sub){return'<div class="stat '+cls+'" onclick="showView(
 function showColorMo(l,color){
   var cs=cLoc(l).customers;
   var has=cs.filter(function(c){return(S[l].items[c.id]||[]).some(function(i){return i.type==='color'&&i.done&&i.text===color;});});
-  var not=cs.filter(function(c){return(S[l].items[c.id]||[]).some(function(i){return i.type==='color'&&!i.done&&i.text===color;});});
+  var not=cs.filter(function(c){return(S[l].items[c.id]||[]).some(function(i){return i.type==='color'&&!i.done&&i.status!=='ordered'&&i.text===color;});});
   var ord=cs.filter(function(c){return(S[l].items[c.id]||[]).some(function(i){return i.type==='color'&&i.status==='ordered'&&i.text===color;});});
   document.getElementById('cm-title').textContent=color+' — '+(l==='sar'?'Sarasota':'Pinellas Park');
   var h='';
-  if(has.length){h+='<div class="sec-lbl" style="margin-top:0">✅ Has it ('+has.length+')</div>';has.forEach(function(c){var s=esc(c.id);h+='<div class="act-row" onclick="closeMo(\'mo-color\');openCust(\''+l+'\',\''+s+'\')"><div class="act-name">'+c.emoji+' '+c.name+'</div><span class="tag teal">Has ›</span></div>';});}
-  if(ord.length){h+='<div class="sec-lbl">📦 Ordered ('+ord.length+')</div>';ord.forEach(function(c){var s=esc(c.id);h+='<div class="act-row" onclick="closeMo(\'mo-color\');openCust(\''+l+'\',\''+s+'\')"><div class="act-name">'+c.emoji+' '+c.name+'</div><span class="tag blue">Ordered ›</span></div>';});}
-  if(not.length){h+='<div class="sec-lbl">⬜ Missing ('+not.length+')</div>';not.forEach(function(c){var s=esc(c.id);h+='<div class="act-row" onclick="closeMo(\'mo-color\');openCust(\''+l+'\',\''+s+'\')"><div class="act-name">'+c.emoji+' '+c.name+'</div><span class="tag red">Missing ›</span></div>';});}
+  if(has.length){h+='<div class="sec-lbl" style="margin-top:0">✅ Has it ('+has.length+')</div>';has.forEach(function(c){var s=esc(c.id);h+='<div class="act-row" onclick="closeMo(\'mo-color\');openCust(\''+l+'\',\''+s+'\')"><div class="act-name">'+html(c.emoji)+' '+html(c.name)+'</div><span class="tag teal">Has ›</span></div>';});}
+  if(ord.length){h+='<div class="sec-lbl">📦 Ordered ('+ord.length+')</div>';ord.forEach(function(c){var s=esc(c.id);h+='<div class="act-row" onclick="closeMo(\'mo-color\');openCust(\''+l+'\',\''+s+'\')"><div class="act-name">'+html(c.emoji)+' '+html(c.name)+'</div><span class="tag blue">Ordered ›</span></div>';});}
+  if(not.length){h+='<div class="sec-lbl">⬜ Missing ('+not.length+')</div>';not.forEach(function(c){var s=esc(c.id);h+='<div class="act-row" onclick="closeMo(\'mo-color\');openCust(\''+l+'\',\''+s+'\')"><div class="act-name">'+html(c.emoji)+' '+html(c.name)+'</div><span class="tag red">Missing ›</span></div>';});}
   document.getElementById('cm-body').innerHTML=h||'<p style="font-size:13px;color:var(--charcoal-light)">No data</p>';
   openMo('mo-color');
 }
@@ -992,7 +1002,7 @@ function renderBrowser(){
     .slice().sort(function(a,b){if(a.starred&&!b.starred)return-1;if(!a.starred&&b.starred)return 1;var ta=a.tier||'b',tb=b.tier||'b';if(ta!==tb)return ta<tb?-1:1;return a.name.toLowerCase()<b.name.toLowerCase()?-1:1;});
   var h='<div style="margin-bottom:12px"><h2 style="font-family:Georgia,serif;font-size:20px;margin-bottom:10px">Customers</h2>'+
     '<div class="loc-tog"><button class="ltb'+(l==='sar'?' on':'')+'" onclick="cbLoc(\'sar\')">📍 Sarasota ('+S.sar.customers.length+')</button><button class="ltb'+(l==='pin'?' on':'')+'" onclick="cbLoc(\'pin\')">📍 Pinellas Park ('+S.pin.customers.length+')</button></div>'+
-    '<input class="cb-srch" type="text" placeholder="🔍 Search customers…" value="'+(S.cbSearch||'')+'" oninput="S.cbSearch=this.value;renderBrowser()"></div>';
+    '<input class="cb-srch" type="text" placeholder="🔍 Search customers…" value="'+html(S.cbSearch||'')+'" oninput="S.cbSearch=this.value;renderBrowser()"></div>';
   if(!cs.length){h+='<div style="text-align:center;padding:36px;color:var(--charcoal-light)"><div style="font-size:38px;margin-bottom:8px">🏪</div><p style="font-weight:600;font-size:14px;margin-bottom:14px">No customers found.</p><button onclick="openMo(\'mo-nc\')" style="padding:10px 20px;background:var(--gold);color:white;border:none;border-radius:var(--rs);font-family:-apple-system,sans-serif;font-weight:700;font-size:13px;cursor:pointer">＋ Add Customer</button></div>';document.getElementById('cust-zone').innerHTML=h;return;}
   var starred=cs.filter(function(c){return!!c.starred;}),regular=cs.filter(function(c){return!c.starred;});
   if(starred.length){h+='<div class="sec-lbl">⭐ Starred</div>';starred.forEach(function(c){h+=cbRow(l,c,now);});}
@@ -1009,8 +1019,8 @@ function cbRow(l,c,now){
   var days=c.updated?Math.floor((now-new Date(c.updated).getTime())/86400000):999;
   var tcls=c.tier==='a'?'ta':c.tier==='c'?'tc':'tb';var s=esc(c.id);
   return'<div class="cb-item '+tcls+(days>30?' stale':'')+'" onclick="openCust(\''+l+'\',\''+s+'\')">'+
-    '<span style="font-size:19px">'+c.emoji+'</span>'+
-    '<div class="cb-body"><div class="cb-nm">'+(c.starred?'★ ':'')+c.name+'</div>'+
+    '<span style="font-size:19px">'+html(c.emoji)+'</span>'+
+    '<div class="cb-body"><div class="cb-nm">'+(c.starred?'★ ':'')+html(c.name)+'</div>'+
     '<div class="cb-sub">'+pl+'/'+tot+' colors'+(days<999?' · '+days+'d ago':'')+(days>30?' · ⚠️ Needs visit':'')+'</div></div>'+
     '<div class="cb-right"><div class="cb-pct">'+pct+'%</div><div class="cb-bw"><div class="cb-bf" style="width:'+pct+'%"></div></div><span style="font-size:15px;color:var(--stone-dark)">›</span></div></div>';
 }
@@ -1033,11 +1043,11 @@ function renderDetail(){
   var tl=c.tier==='a'?'🔴 A-Tier':c.tier==='c'?'🟣 C-Tier':'🟠 B-Tier';
   var tc=c.tier==='a'?'red':c.tier==='c'?'purple':'orange';
   var h='<button class="back-btn" onclick="goBack()">‹ All Customers</button>'+
-    '<div class="cust-nm-row"><div class="cust-nm">'+c.emoji+' '+c.name+'</div>'+
+    '<div class="cust-nm-row"><div class="cust-nm">'+html(c.emoji)+' '+html(c.name)+'</div>'+
     '<span class="pill gold">'+(l==='sar'?'Sarasota':'Pinellas Park')+'</span>'+
     '<span class="pill '+tc+'">'+tl+'</span>'+(c.starred?'<span class="pill gold">★</span>':'')+
     '</div><div class="cust-meta">'+
-    '<span class="cust-upd">🕐 '+upd+'</span>'+(c.updatedBy?'<span class="cust-by">by '+c.updatedBy+'</span>':'')+
+    '<span class="cust-upd">🕐 '+upd+'</span>'+(c.updatedBy?'<span class="cust-by">by '+html(c.updatedBy)+'</span>':'')+
     (days!==null&&days>30?'<span class="stale-w">⚠️ '+days+'d overdue</span>':'')+
     '</div><div class="cust-acts">'+
     '<button class="cact" style="background:var(--gold);color:white" onclick="openMo(\'mo-visit\')">📋 Visit</button>'+
@@ -1053,7 +1063,7 @@ function renderDetail(){
   h+='<div class="tw-box"><div class="box-lbl">🏗️ Tower / Display Type</div><div class="tw-chips">';
   DISP.forEach(function(dt){var on=dm[dt.id]||false;h+='<label class="tw-chip'+(on?' on':'')+'"><input type="checkbox" data-id="'+dt.id+'" data-label="'+dt.label+'"'+(on?' checked':'')+' onchange="toggleDisp(this)">'+dt.label+'</label>';});
   h+='</div>';
-  if(pl.length)h+='<div class="box-lbl" style="margin-top:10px">📦 Colors here ('+pl.length+')</div><div class="samp-chips">'+pl.map(function(i){return'<span class="samp-chip">'+i.text+'</span>';}).join('')+'</div>';
+  if(pl.length)h+='<div class="box-lbl" style="margin-top:10px">📦 Colors here ('+pl.length+')</div><div class="samp-chips">'+pl.map(function(i){return'<span class="samp-chip">'+html(i.text)+'</span>';}).join('')+'</div>';
   else h+='<div class="box-lbl" style="margin-top:10px">📦 Colors here</div><div class="samp-chips"><span class="samp-none">None yet</span></div>';
   h+='</div>';
   h+='<div class="prog-wrap"><div class="prog-row"><span>Colors Placed</span><span>'+pct+'%</span></div><div class="prog-track"><div class="prog-fill" style="width:'+pct+'%"></div></div></div>';
@@ -1061,9 +1071,9 @@ function renderDetail(){
     '<div class="add-row"><input type="text" id="add-samp" placeholder="Add a color name…" maxlength="60" autocomplete="off"><button class="abtn gold" onclick="addSamp()">+</button></div>'+
     '<div class="add-row"><input type="text" id="add-note" placeholder="Add a note…" maxlength="120" autocomplete="off"><button class="abtn teal" onclick="addNote()">+</button></div>'+
     '</div><div id="item-list"></div>';
-  if(visits.length){h+='<div class="sec-lbl">📋 Visit Log</div><div class="dc">';visits.slice(0,5).forEach(function(v){h+='<div class="visit-item"><span style="font-size:16px">📋</span><div class="visit-body"><div class="visit-date">'+new Date(v.visitDate||Date.now()).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+'</div><div class="visit-by">by '+v.visitBy+'</div>'+(v.text?'<div class="visit-note">'+v.text+'</div>':'')+'</div></div>';});h+='</div>';}
+  if(visits.length){h+='<div class="sec-lbl">📋 Visit Log</div><div class="dc">';visits.slice(0,5).forEach(function(v){h+='<div class="visit-item"><span style="font-size:16px">📋</span><div class="visit-body"><div class="visit-date">'+new Date(v.visitDate||Date.now()).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+'</div><div class="visit-by">by '+html(v.visitBy)+'</div>'+(v.text?'<div class="visit-note">'+html(v.text)+'</div>':'')+'</div></div>';});h+='</div>';}
   document.getElementById('cust-zone').innerHTML=h;
-  document.getElementById('ph').innerHTML='<h2>'+c.emoji+' '+c.name+'</h2><p>'+(l==='sar'?'Sarasota':'Pinellas Park')+' · '+new Date().toLocaleDateString()+'</p>';
+  document.getElementById('ph').innerHTML='<h2>'+html(c.emoji)+' '+html(c.name)+'</h2><p>'+(l==='sar'?'Sarasota':'Pinellas Park')+' · '+new Date().toLocaleDateString()+'</p>';
   var si=document.getElementById('add-samp'),ni=document.getElementById('add-note');
   if(si)si.addEventListener('keydown',function(e){if(e.key==='Enter')addSamp();});
   if(ni)ni.addEventListener('keydown',function(e){if(e.key==='Enter')addNote();});
@@ -1143,9 +1153,10 @@ function setStatus(item,status){
     saveAll();renderDetail();renderDash();renderSB();showToast('❌ '+item.text+' discontinued');return;
   }
   saveSnap(S.activeCustomer);
+  var wasDone=!!item.done;
   item.done=(status==='placed');item.status=(status==='placed'||status==='none')?'none':status;
   resort();
-  if(status==='placed'){var wh=S[S.loc].warehouse;if(wh[item.text]>0){wh[item.text]--;if(wh[item.text]<=S.threshold)showToast('⚠️ '+item.text+' stock low!');}}
+  if(status==='placed'&&!wasDone){var wh=S[S.loc].warehouse;if(wh[item.text]>0){wh[item.text]--;if(wh[item.text]<=S.threshold)showToast('⚠️ '+item.text+' stock low!');}}
   var cols=S[S.loc].items[S.activeCustomer].filter(function(i){return i.type==='color';});
   if(item.done&&cols.filter(function(i){return!i.done;}).length===0)setTimeout(function(){confettiRain();showToast('🎉 All colors placed!');},300);
   saveAll();setTimeout(function(){renderItemList();renderSB();renderDash();},300);
@@ -1196,9 +1207,10 @@ function clearColors(){
 }
 function bulkAct(action){
   saveSnap(S.activeCustomer);
+  var wh=S[S.loc].warehouse;
   (S[S.loc].items[S.activeCustomer]||[]).forEach(function(i){
     if(i.type!=='color')return;
-    if(action==='placed'){i.done=true;i.status='none';}
+    if(action==='placed'){if(!i.done&&wh[i.text]>0)wh[i.text]--;i.done=true;i.status='none';}
     else if(action==='clear'){i.done=false;i.status='none';}
     else if(action==='needs-rep'){i.status='needs-rep';i.done=false;}
     else if(action==='ordered'){i.status='ordered';i.done=false;}
@@ -1266,7 +1278,7 @@ function openRestoreMo(){
     var dt=new Date(snap.ts).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
     h+='<div style="padding:10px;border:1px solid var(--stone-dark);border-radius:8px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:10px">'+
       '<div><div style="font-size:13px;font-weight:700;">'+dt+'</div>'+
-      '<div style="font-size:11px;color:var(--charcoal-light);margin-top:2px;">by '+snap.by+' · '+pl+'/'+tot+' colors</div></div>'+
+      '<div style="font-size:11px;color:var(--charcoal-light);margin-top:2px;">by '+html(snap.by)+' · '+pl+'/'+tot+' colors</div></div>'+
       '<button onclick="doRestore('+i+')" style="padding:7px 12px;background:var(--purple);color:white;border:none;border-radius:8px;font-family:-apple-system,sans-serif;font-weight:700;font-size:12px;cursor:pointer">Restore</button></div>';
   });
   document.getElementById('customer-snap-list').innerHTML=h;openMo('mo-restore');
@@ -1284,8 +1296,8 @@ function emailCust(){
   var its=S[l].items[S.activeCustomer]||[];
   var pl=its.filter(function(i){return i.done&&i.type==='color';});
   var np=its.filter(function(i){return!i.done&&i.type==='color'&&i.status!=='ordered';});
-  var ord=its.filter(function(i){return i.status==='ordered';});
-  var nr=its.filter(function(i){return i.status==='needs-rep';});
+  var ord=its.filter(function(i){return i.type==='color'&&i.status==='ordered';});
+  var nr=its.filter(function(i){return i.type==='color'&&i.status==='needs-rep';});
   var notes=its.filter(function(i){return i.type==='note';});
   var disp=its.filter(function(i){return i.type==='display'&&i.done;});
   var ll=l==='sar'?'Sarasota':'Pinellas Park';
@@ -1344,8 +1356,8 @@ function exportCSV(){
       var l=pair[0],ll=pair[1];S[l].customers.forEach(function(c){
         var its=S[l].items[c.id]||[];
         var pl=its.filter(function(i){return i.done&&i.type==='color';}).map(function(i){return i.text;});
-        var ord=its.filter(function(i){return i.status==='ordered';}).map(function(i){return i.text;});
-        var nr=its.filter(function(i){return i.status==='needs-rep';}).map(function(i){return i.text;});
+        var ord=its.filter(function(i){return i.type==='color'&&i.status==='ordered';}).map(function(i){return i.text;});
+        var nr=its.filter(function(i){return i.type==='color'&&i.status==='needs-rep';}).map(function(i){return i.text;});
         var ms=its.filter(function(i){return!i.done&&i.type==='color'&&i.status!=='ordered'&&i.status!=='needs-rep';}).map(function(i){return i.text;});
         var tw=its.filter(function(i){return i.type==='display'&&i.done;}).map(function(i){return i.text;});
         var tot=pl.length+ms.length;var pct=tot?Math.round(pl.length/tot*100):0;
@@ -1360,7 +1372,7 @@ function exportCSV(){
 function exportPDF(){
   var win=window.open('','_blank');
   var h='<html><head><title>VSI Report</title><style>body{font-family:Arial,sans-serif;padding:20px;font-size:11px;}h1{font-size:18px;}h2{font-size:14px;margin:16px 0 6px;border-bottom:2px solid #B8912A;padding-bottom:3px;}table{width:100%;border-collapse:collapse;margin-bottom:12px;}th{background:#1C1C1E;color:white;padding:5px 7px;text-align:left;font-size:10px;}td{padding:4px 7px;border-bottom:1px solid #E8E0D0;font-size:10px;}tr:nth-child(even){background:#F5F0E8;}.pl{color:#2A6B5F;font-weight:600;}.ms{color:#636366;}@media print{button{display:none}}</style></head><body>';
-  h+='<h1>VSI Surfaces — Sample Tracker</h1><p style="color:#666;font-size:11px;margin-bottom:12px">'+new Date().toLocaleString()+(S.user?' · By: '+S.user:'')+'</p>';
+  h+='<h1>VSI Surfaces — Sample Tracker</h1><p style="color:#666;font-size:11px;margin-bottom:12px">'+new Date().toLocaleString()+(S.user?' · By: '+html(S.user):'')+'</p>';
   h+='<button onclick="window.print()" style="padding:7px 14px;background:#B8912A;color:white;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;margin-bottom:14px">🖨️ Print / Save PDF</button>';
   [['sar','Sarasota'],['pin','Pinellas Park']].forEach(function(pair){
     var l=pair[0],ll=pair[1];h+='<h2>📍 '+ll+' ('+S[l].customers.length+')</h2>';
@@ -1369,13 +1381,13 @@ function exportPDF(){
       var its=S[l].items[c.id]||[];
       var pl=its.filter(function(i){return i.done&&i.type==='color';});
       var ms=its.filter(function(i){return!i.done&&i.type==='color'&&i.status!=='ordered';});
-      var ord=its.filter(function(i){return i.status==='ordered';});
+      var ord=its.filter(function(i){return i.type==='color'&&i.status==='ordered';});
       var tw=its.filter(function(i){return i.type==='display'&&i.done;});
       var tot=pl.length+ms.length;var pct=tot?Math.round(pl.length/tot*100):0;
-      h+='<tr><td><strong>'+c.name+'</strong></td><td>'+(c.tier||'b').toUpperCase()+'</td><td>'+(tw.length?tw.map(function(i){return i.text;}).join(', '):'—')+'</td>'+
-        '<td class="pl">'+(pl.length?pl.map(function(i){return i.text;}).join(', '):'None')+'</td>'+
-        '<td>'+(ord.length?ord.map(function(i){return i.text;}).join(', '):'—')+'</td>'+
-        '<td class="ms">'+(ms.length?ms.map(function(i){return i.text;}).join(', '):'All ✓')+'</td>'+
+      h+='<tr><td><strong>'+html(c.name)+'</strong></td><td>'+html((c.tier||'b').toUpperCase())+'</td><td>'+(tw.length?tw.map(function(i){return html(i.text);}).join(', '):'—')+'</td>'+
+        '<td class="pl">'+(pl.length?pl.map(function(i){return html(i.text);}).join(', '):'None')+'</td>'+
+        '<td>'+(ord.length?ord.map(function(i){return html(i.text);}).join(', '):'—')+'</td>'+
+        '<td class="ms">'+(ms.length?ms.map(function(i){return html(i.text);}).join(', '):'All ✓')+'</td>'+
         '<td>'+pct+'%</td><td>'+(c.updated?new Date(c.updated).toLocaleDateString():'Never')+'</td></tr>';
     });h+='</table>';
   });h+='</body></html>';win.document.write(h);win.document.close();
