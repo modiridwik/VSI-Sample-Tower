@@ -451,7 +451,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <div class="modal">
     <h3>↩ Restore Previous State</h3>
     <p style="font-size:12px;color:var(--charcoal-light);margin-bottom:12px;line-height:1.5">Snapshots save automatically before every change.</p>
-    <div id="snap-list"></div>
+    <div id="customer-snap-list"></div>
     <div class="modal-btns" style="margin-top:12px;"><button class="m-cancel" onclick="closeMo('mo-restore')">Cancel</button></div>
   </div>
 </div>
@@ -553,7 +553,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </div>
 <script>
 // ═══════════════════════════════════════════════════════════════
-// VSI SURFACES SAMPLE TRACKER — localStorage only, no Firebase
+// VSI SURFACES SAMPLE TRACKER — local-first with guarded Supabase sync
 // ═══════════════════════════════════════════════════════════════
 var KEY='vsi_v1';
 var VSI_Q='';
@@ -616,17 +616,22 @@ function idbRestore(ts){
 
 // ── STORAGE ──────────────────────────────────────────────────────
 var SB_SAVE_PENDING=false;
+var SB_REV=null,SB_CONFLICT=false,SB_CHAIN=Promise.resolve(),SB_WRITES=0;
+function syncWarning(message){
+  var el=document.getElementById('sync-warning');
+  if(!el){el=document.createElement('div');el.id='sync-warning';el.setAttribute('role','alert');el.style.cssText='position:sticky;top:56px;z-index:201;background:#FDECEA;color:#822;padding:12px;font-size:13px;border-bottom:2px solid #C0392B';document.body.prepend(el);}
+  el.textContent=message+' Your local data is preserved. Export a JSON backup before reloading or restoring data.';
+}
+
 var OFFLINE_Q=null;
 window.addEventListener('online',function(){
-  if(OFFLINE_Q){showToast('🔄 Back online — syncing...');sbSave(OFFLINE_Q).then(function(ok){if(ok){OFFLINE_Q=null;showToast('☁️ Changes synced!');}});}
+  if(OFFLINE_Q)syncWarning('Unsynced local changes are waiting. Export a backup before syncing them.');
 });
 function mkPayload(){return{saved_at:S.saved_at,user:S.user,threshold:S.threshold,sar:{customers:S.sar.customers,items:S.sar.items,warehouse:S.sar.warehouse},pin:{customers:S.pin.customers,items:S.pin.items,warehouse:S.pin.warehouse}};}
 var SNAP_KEY='vsi_snaps';
 var LAST_SNAP_TS=0;
 function takeSnap(label){
   try{
-    var n=0;['sar','pin'].forEach(function(l){Object.keys(S[l].items||{}).forEach(function(k){(S[l].items[k]||[]).forEach(function(i){if(i.done||i.status!=='none')n++;});});});
-    if(n===0)return;
     var now=Date.now();
     if(!label&&now-LAST_SNAP_TS<3600000)return;
     LAST_SNAP_TS=now;
@@ -683,12 +688,12 @@ function persist(){
     var p=mkPayload();
     takeSnap();
     localStorage.setItem(KEY,JSON.stringify(p));
-    SB_SAVE_PENDING=true;
+    localStorage.setItem(KEY+'_pending',p.saved_at||'pending');
     sbSave(p).then(function(ok){
-      SB_SAVE_PENDING=false;
+      SB_SAVE_PENDING=SB_WRITES>0;
       var dot=document.getElementById('save-dot');
-      if(ok){OFFLINE_Q=null;if(dot)dot.className='';}
-      else{OFFLINE_Q=p;if(dot){dot.style.background='var(--orange)';setTimeout(function(){dot.style.background='';},3000);}showToast('📴 Offline — saved locally, will sync when back online');}
+      if(ok){if(localStorage.getItem(KEY+'_pending')===(p.saved_at||'pending')){localStorage.removeItem(KEY+'_pending');OFFLINE_Q=null;}if(dot&&!SB_SAVE_PENDING)dot.className='';}
+      else{OFFLINE_Q=p;if(dot){dot.style.background='var(--orange)';setTimeout(function(){dot.style.background='';},3000);}showToast('Cloud sync paused — changes saved locally');}
     });
   }catch(e){alert('Save failed — storage may be full. Export a backup!');}
 }
@@ -697,7 +702,7 @@ function load(){
     var raw=localStorage.getItem(KEY);
     if(!raw)return defState();
     var d=JSON.parse(raw),s=defState();
-    s.user=d.user||null;s.threshold=d.threshold!==undefined?d.threshold:2;
+    s.user=(S&&S.user)||d.user||null;s.threshold=d.threshold!==undefined?d.threshold:2;
     s.saved_at=d.saved_at||null;
     if(d.sar){if(d.sar.customers&&d.sar.customers.length)s.sar.customers=d.sar.customers;if(d.sar.items)s.sar.items=d.sar.items;if(d.sar.warehouse)s.sar.warehouse=d.sar.warehouse;}
     if(d.pin){if(d.pin.customers)s.pin.customers=d.pin.customers;if(d.pin.items)s.pin.items=d.pin.items;if(d.pin.warehouse)s.pin.warehouse=d.pin.warehouse;}
@@ -708,9 +713,24 @@ function load(){
 }
 function sbHeaders(){return{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json'};}
 function sbSave(payload){
-  sbBackup(payload);
-  return fetch(SB_URL+'/app_data',{method:'POST',headers:Object.assign({},sbHeaders(),{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify([{id:'vsi_v1',data:payload,updated_at:payload.saved_at}])})
-  .then(function(r){return r.ok;}).catch(function(){return false;});
+  // Freeze each write; serialize requests so earlier edits cannot finish last.
+  var frozen=JSON.parse(JSON.stringify(payload));
+  var savedPayload=JSON.parse(JSON.stringify(payload));
+  SB_WRITES++;SB_SAVE_PENDING=true;
+  var task=SB_CHAIN.then(function(){
+    if(!SB_REV||SB_CONFLICT){syncWarning('Cloud sync is paused until cloud data can be loaded and reconciled.');return false;}
+    frozen.saved_at=new Date(Math.max(Date.now(),new Date(SB_REV).getTime()+1)).toISOString();
+    return fetch(SB_URL+'/app_data?id=eq.vsi_v1&updated_at=eq.'+encodeURIComponent(SB_REV),{
+      method:'PATCH',headers:Object.assign({},sbHeaders(),{'Prefer':'return=representation'}),
+      body:JSON.stringify({data:savedPayload,updated_at:frozen.saved_at})
+    }).then(function(r){if(!r.ok)throw new Error('Cloud save failed');return r.json();})
+    .then(function(rows){
+      if(!rows||rows.length!==1){SB_CONFLICT=true;syncWarning('Another device changed the cloud data. Sync is paused to prevent overwriting it.');return false;}
+      SB_REV=rows[0].updated_at;return true;
+    }).catch(function(){syncWarning('Cloud save failed. Changes are saved on this device.');return false;});
+  });
+  SB_CHAIN=task.catch(function(){return false;});
+  return task.then(function(ok){SB_WRITES--;SB_SAVE_PENDING=SB_WRITES>0;return ok;});
 }
 var SB_BAK_KEY='vsi_last_cloud_bak';
 function sbBackup(payload){
@@ -729,7 +749,7 @@ function sbLoad(){
 }
 function applyRemote(row,silent){
   if(!row||!row.data)return;
-  if(SB_SAVE_PENDING)return;
+  if(SB_SAVE_PENDING||OFFLINE_Q||SB_CONFLICT)return;
   var ae=document.activeElement;
   if(ae&&(ae.contentEditable==='true'||ae.tagName==='INPUT'||ae.tagName==='TEXTAREA')){
     setTimeout(function(){applyRemote(row,silent);},5000);return;
@@ -737,28 +757,30 @@ function applyRemote(row,silent){
   var d=row.data;
   var remoteTs=new Date(row.updated_at||0).getTime();
   var localTs=new Date(S.saved_at||0).getTime();
-  if(remoteTs<=localTs)return;
+  if(d.saved_at===S.saved_at){SB_REV=row.updated_at;return;}
+  if(remoteTs<localTs){syncWarning('This device has newer local changes. Cloud sync is paused to protect both copies.');return;}
   var remCust=(d.sar&&d.sar.customers?d.sar.customers.length:0)+(d.pin&&d.pin.customers?d.pin.customers.length:0);
   var locCust=S.sar.customers.length+S.pin.customers.length;
   if(remCust===0&&locCust>0)return;
   function countItems(data){var n=0;var locs=['sar','pin'];locs.forEach(function(l){var items=(data[l]&&data[l].items)||{};Object.keys(items).forEach(function(k){(items[k]||[]).forEach(function(i){if(i.done||i.status!=='none')n++;});});});return n;}
   var remItems=countItems(d);
   var locItems=countItems(S);
-  if(remItems===0&&locItems>0){if(!S.saved_at)S.saved_at=new Date().toISOString();sbSave(mkPayload());return;}
+  if(remItems===0&&locItems>0){syncWarning('Cloud data appears empty. Your local records have been kept.');return;}
   if(locItems>5&&remItems<locItems*0.7){
     if(!confirm('⚠️ Cloud data has '+remItems+' items tracked, but this device has '+locItems+'.\n\nApplying will reduce your data. A snapshot will be saved first.\n\nApply cloud version anyway?')){
-      if(!S.saved_at)S.saved_at=new Date().toISOString();sbSave(mkPayload());return;
+      return;
     }
   }
   LAST_SNAP_TS=0;takeSnap('pre-sync');
   var s=defState();
-  s.user=d.user||null;s.threshold=d.threshold!==undefined?d.threshold:2;s.saved_at=d.saved_at||row.updated_at||null;
+  s.user=(S&&S.user)||d.user||null;s.threshold=d.threshold!==undefined?d.threshold:2;s.saved_at=d.saved_at||row.updated_at||null;
   if(d.sar){if(d.sar.customers&&d.sar.customers.length)s.sar.customers=d.sar.customers;if(d.sar.items)s.sar.items=d.sar.items;if(d.sar.warehouse)s.sar.warehouse=d.sar.warehouse;}
   if(d.pin){if(d.pin.customers)s.pin.customers=d.pin.customers;if(d.pin.items)s.pin.items=d.pin.items;if(d.pin.warehouse)s.pin.warehouse=d.pin.warehouse;}
   s.sar.customers.forEach(function(c){if(!s.sar.items[c.id])s.sar.items[c.id]=mkItems(c.id);});
   s.pin.customers.forEach(function(c){if(!s.pin.items[c.id])s.pin.items[c.id]=[];});
   s.activeView=S.activeView;s.activeCustomer=S.activeCustomer;s.showDetail=S.showDetail;s.sbOpen=window.innerWidth<=600?false:S.sbOpen;s.loc=S.loc;s.sbLoc=S.sbLoc;s.dashLoc=S.dashLoc;s.whLoc=S.whLoc;s.cbLoc=S.cbLoc;s.cbSearch=S.cbSearch;
   S=s;
+  SB_REV=row.updated_at;
   localStorage.setItem(KEY,JSON.stringify(d));
   document.getElementById('thresh').value=S.threshold;
   updateUserUI();renderAll();
@@ -793,7 +815,7 @@ function closeMo(id){var el=document.getElementById(id);if(el)el.classList.remov
 document.addEventListener('click',function(e){if(e.target.classList.contains('mo'))e.target.classList.remove('on');});
 
 // ── USER ──────────────────────────────────────────────────────────
-function setUser(n){S.user=n;closeMo('mo-user');persist();updateUserUI();showToast('Welcome, '+n+'! 👋');}
+function setUser(n){S.user=n;closeMo('mo-user');updateUserUI();showToast('Welcome, '+n+'! 👋');}
 function updateUserUI(){var a=document.getElementById('tu-av'),n=document.getElementById('tu-nm');if(S.user){a.textContent=S.user.charAt(0);n.textContent=S.user;}else{a.textContent='?';n.textContent='Sign in';}}
 
 // ── SIDEBAR ───────────────────────────────────────────────────────
@@ -1188,7 +1210,7 @@ function openRestoreMo(){
       '<div style="font-size:11px;color:var(--charcoal-light);margin-top:2px;">by '+snap.by+' · '+pl+'/'+tot+' colors</div></div>'+
       '<button onclick="doRestore('+i+')" style="padding:7px 12px;background:var(--purple);color:white;border:none;border-radius:8px;font-family:-apple-system,sans-serif;font-weight:700;font-size:12px;cursor:pointer">Restore</button></div>';
   });
-  document.getElementById('snap-list').innerHTML=h;openMo('mo-restore');
+  document.getElementById('customer-snap-list').innerHTML=h;openMo('mo-restore');
 }
 function doRestore(idx){
   var l=S.loc,cid=S.activeCustomer;var snaps=SNAPS[l]&&SNAPS[l][cid]?SNAPS[l][cid]:[];
@@ -1343,6 +1365,8 @@ document.getElementById('nc-nm').addEventListener('keydown',function(e){if(e.key
 // LAUNCH — local-first, then sync from Supabase
 // ═══════════════════════════════════════════════════════════════
 S = load();
+try{OFFLINE_Q=JSON.parse(localStorage.getItem(KEY+'_pending')||'null');}catch(e){}
+if(OFFLINE_Q)syncWarning('This device has unsynced changes from a previous session. Cloud sync is paused to protect them.');
 if(window.innerWidth<=600)S.sbOpen=false;
 var h = new Date().getHours();
 document.getElementById('greet').textContent = h<12?'morning':h<17?'afternoon':'evening';
@@ -1360,10 +1384,7 @@ if(daysSinceBak>=7 && realItemCount>0){
 }
 sbLoad().then(function(row){
   if(row){applyRemote(row,false);}
-  else{
-    var hasRealData=S.saved_at||(function(){var n=0;['sar','pin'].forEach(function(l){Object.keys(S[l].items||{}).forEach(function(k){(S[l].items[k]||[]).forEach(function(i){if(i.done||i.status!=='none')n++;});});});return n;})()>0;
-    if(hasRealData){if(!S.saved_at)S.saved_at=new Date().toISOString();sbSave(mkPayload());}
-  }
+  else{syncWarning('Cloud data could not be loaded. Automatic cloud uploads are paused to prevent a reset.');}
   startPolling();
 });
 </script>
