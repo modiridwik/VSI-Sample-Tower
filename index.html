@@ -221,6 +221,50 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .visit-date{font-size:12px;font-weight:700;}
 .visit-by{font-size:11px;color:var(--teal);font-weight:600;}
 .visit-note{font-size:11px;color:var(--charcoal-light);margin-top:2px;font-style:italic;}
+.visit-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+.visit-head .dtitle{font-size:22px;}
+.visit-actions{display:flex;align-items:center;gap:6px;}
+.visit-actions button,.visit-nav button{border:1px solid var(--stone-dark);border-radius:var(--rs);background:var(--white);padding:7px 10px;font:600 12px -apple-system,sans-serif;color:var(--charcoal);cursor:pointer;}
+.visit-actions .visit-add{background:var(--teal);border-color:var(--teal);color:white;padding:8px 12px;}
+.visit-summary{font-size:11px;color:var(--charcoal-light);margin-bottom:9px;}
+.visit-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;}
+.visit-nav-group{display:flex;gap:5px;align-items:center;}
+.visit-month{font:600 16px Georgia,serif;min-width:132px;text-align:center;}
+.visit-calendar{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;}
+.visit-weekday{text-align:center;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--charcoal-light);padding:2px 0 5px;}
+.visit-day{min-height:68px;padding:6px 5px;border:1px solid var(--stone-mid);border-radius:7px;background:var(--white);color:var(--charcoal);text-align:left;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;gap:3px;}
+.visit-day:hover{border-color:var(--gold);}
+.visit-day.outside{background:var(--stone);color:#9a958a;}
+.visit-day.selected{border:2px solid var(--gold);padding:5px 4px;background:var(--gold-light);}
+.visit-day.today .visit-day-num{background:var(--charcoal);color:white;border-radius:50%;}
+.visit-day-num{width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;}
+.visit-day-count{font-size:9px;color:var(--teal);font-weight:700;line-height:1.15;}
+.visit-day-count.planned{color:var(--blue);}
+.visit-agenda{margin-top:10px;}
+.visit-agenda-title{display:flex;align-items:center;justify-content:space-between;gap:8px;font:600 16px Georgia,serif;margin-bottom:8px;}
+.visit-agenda-title small{font:500 10px -apple-system,sans-serif;color:var(--charcoal-light);}
+.visit-entry{display:flex;align-items:flex-start;gap:10px;padding:11px 0;border-bottom:1px solid var(--stone-mid);}
+.visit-entry:last-child{border-bottom:0;}
+.visit-entry-main{flex:1;min-width:0;}
+.visit-entry-name{font-size:13px;font-weight:700;word-break:break-word;}
+.visit-entry-meta{font-size:10px;color:var(--charcoal-light);margin-top:3px;}
+.visit-entry-note{font-size:11px;color:var(--charcoal-mid);margin-top:4px;white-space:pre-wrap;word-break:break-word;}
+.visit-entry-actions{display:flex;align-items:center;gap:4px;flex-shrink:0;}
+.visit-entry-actions button{border:1px solid var(--stone-dark);background:var(--white);border-radius:6px;padding:5px 7px;font:600 10px -apple-system,sans-serif;cursor:pointer;color:var(--charcoal-mid);}
+.visit-entry-actions .visit-done{color:var(--teal);border-color:rgba(42,107,95,.35);}
+.visit-state{display:inline-block;border-radius:20px;padding:2px 7px;font-size:9px;font-weight:700;background:var(--teal-light);color:var(--teal);margin-left:5px;}
+.visit-state.planned{background:var(--blue-light);color:var(--blue);}
+.visit-empty{text-align:center;color:var(--charcoal-light);font-size:12px;padding:20px 8px;}
+.visit-form-label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--charcoal-light);margin:2px 0 5px;}
+@media(max-width:600px){
+  .visit-day{min-height:55px;padding:4px 3px;gap:2px;}
+  .visit-day.selected{padding:3px 2px;}
+  .visit-day-count{font-size:8px;}
+  .visit-month{min-width:108px;font-size:15px;}
+  .visit-entry{gap:6px;}
+  .visit-entry-actions{flex-direction:column;}
+  .visit-entry-actions button{padding:5px 6px;}
+}
 .wh-item{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--stone-mid);}
 .wh-item:last-child{border-bottom:none;}
 .wh-color{font-size:13px;font-weight:600;}
@@ -405,10 +449,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </div>
 <!-- VISIT MODAL -->
 <div class="mo" id="mo-visit">
-  <div class="modal">
-    <h3>Log a Visit</h3>
-    <textarea id="visit-txt" placeholder="What did you do? e.g. Updated 5 colors…" style="min-height:90px"></textarea>
-    <div class="modal-btns"><button class="m-cancel" onclick="closeMo('mo-visit')">Cancel</button><button class="m-ok teal" onclick="saveVisit()">Log Visit</button></div>
+  <div class="modal wide">
+    <h3 id="visit-modal-title">Add a Visit</h3>
+    <label class="visit-form-label" for="visit-loc">Location</label>
+    <select id="visit-loc" onchange="changeVisitLocation()"><option value="sar">📍 Sarasota</option><option value="pin">📍 Pinellas Park</option></select>
+    <label class="visit-form-label" for="visit-customer-search">Find customer</label>
+    <input type="search" id="visit-customer-search" placeholder="Search customer names…" oninput="fillVisitCustomers()" autocomplete="off">
+    <select id="visit-customer" aria-label="Customer"></select>
+    <label class="visit-form-label" for="visit-date">Visit date</label>
+    <input type="date" id="visit-date">
+    <label class="visit-form-label" for="visit-status">Visit status</label>
+    <select id="visit-status"><option value="planned">🗓️ Planned</option><option value="completed">✅ Completed</option></select>
+    <label class="visit-form-label" for="visit-txt">Notes</label>
+    <textarea id="visit-txt" placeholder="What is the visit for, or what happened?" style="min-height:80px"></textarea>
+    <div class="modal-btns"><button class="m-cancel" onclick="closeMo('mo-visit')">Cancel</button><button id="visit-save-btn" class="m-ok teal" onclick="saveVisit()">Save Visit</button></div>
   </div>
 </div>
 <!-- COLOR MODAL -->
@@ -514,17 +568,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <!-- MAIN -->
 <div id="main" class="wide">
   <div class="view on" id="view-dash"><div class="vi">
-    <div class="dash-top">
-      <div><div class="dtitle">Good <span id="greet">morning</span> ☀️</div><div class="dsub" id="gdate"></div></div>
-      <div class="seg"><button class="seg-btn on" id="dl-sar" onclick="switchDL('sar')">📍 Sarasota</button><button class="seg-btn" id="dl-pin" onclick="switchDL('pin')">📍 Pinellas Park</button></div>
+    <div class="visit-head">
+      <div><div class="dtitle">Visit Planner</div><div class="dsub">Schedule upcoming visits and log completed customer visits</div></div>
+      <div class="visit-actions"><button class="visit-add" onclick="openVisitMo(S.dashLoc,null,CAL_SELECTED,'planned')">＋ Add Visit</button></div>
     </div>
-    <div id="d-alerts"></div>
-    <div class="stat-grid" id="d-stats"></div>
-    <div class="dc"><div class="dc-title">⚡ ACTION REQUIRED <span id="act-loc"></span></div><div id="d-action"></div></div>
-    <div class="dc"><div class="dc-title">⚠️ NEEDS ATTENTION <span id="stale-loc"></span></div><div id="d-stale"></div></div>
-    <div class="dc"><div class="dc-title">📦 ORDERED — PENDING <span id="ord-loc"></span></div><div id="d-ordered"></div></div>
-    <div class="dc"><div class="dc-title">🏆 TOP COLORS <span id="top-loc"></span></div><div id="d-top"></div></div>
-    <div class="dc"><div class="dc-title">📊 FULL COVERAGE <span id="cov-loc"></span></div><div id="d-cov"></div></div>
+    <div class="dash-top"><div class="seg"><button class="seg-btn on" id="dl-sar" onclick="switchDL('sar')">📍 Sarasota</button><button class="seg-btn" id="dl-pin" onclick="switchDL('pin')">📍 Pinellas Park</button></div></div>
+    <div class="dc">
+      <div class="visit-nav">
+        <div class="visit-nav-group"><button onclick="moveVisitMonth(-1)" aria-label="Previous month">‹</button><button onclick="goVisitToday()">Today</button><button onclick="moveVisitMonth(1)" aria-label="Next month">›</button></div>
+        <div class="visit-month" id="visit-month-label"></div>
+      </div>
+      <div class="visit-summary" id="visit-month-summary"></div>
+      <div class="visit-calendar" id="visit-calendar"></div>
+      <div class="visit-agenda">
+        <div class="visit-agenda-title"><span id="visit-agenda-title">Visits</span><small id="visit-agenda-count"></small></div>
+        <div id="visit-agenda-list"></div>
+      </div>
+    </div>
   </div></div>
   <div class="view" id="view-customers"><div class="vi">
     <div class="ph" id="ph"></div>
@@ -600,7 +660,9 @@ function normalizeCollection(data){
   return changed;
 }
 
-var S,SNAPS={},NT=null,ET=null;
+var S,SNAPS={},NT=null,ET=null,VISIT_EDIT=null,VISIT_CUSTOMER_Q='';
+var CAL_MONTH=new Date(new Date().getFullYear(),new Date().getMonth(),1);
+var CAL_SELECTED=localDateValue(new Date());
 
 function defState(){
   var o={catalog_version:CATALOG_VERSION,user:null,threshold:2,sbLoc:'sar',dashLoc:'sar',whLoc:'sar',cbLoc:'sar',loc:'sar',activeCustomer:null,activeView:'dash',showDetail:false,cbSearch:'',sbOpen:window.innerWidth>600,
@@ -854,12 +916,20 @@ function startPolling(){
 document.addEventListener('visibilitychange',function(){if(!document.hidden)checkRemoteRevision();});
 
 // ── HELPERS ───────────────────────────────────────────────────────
+function localDateValue(date){var d=new Date(date);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function visitDateValue(visit){var raw=visit&&visit.visitDate;if(typeof raw==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(raw))return raw;var d=raw?new Date(raw):new Date();return isNaN(d.getTime())?localDateValue(new Date()):localDateValue(d);}
+function dateFromValue(value){var p=String(value||'').split('-');return p.length===3?new Date(Number(p[0]),Number(p[1])-1,Number(p[2]),12):new Date();}
+function prettyVisitDate(value,opts){return dateFromValue(value).toLocaleDateString('en-US',opts||{weekday:'long',month:'long',day:'numeric',year:'numeric'});}
 function cLoc(l){return S[l||S.loc];}
 function getCust(l,cid){var cs=cLoc(l).customers;for(var i=0;i<cs.length;i++)if(cs[i].id===cid)return cs[i];return null;}
 function stamp(){var c=getCust(S.loc,S.activeCustomer);if(c){c.updated=new Date().toISOString();c.updatedBy=S.user||'Unknown';}}
+function stampAt(l,cid){var c=getCust(l,cid);if(c){c.updated=new Date().toISOString();c.updatedBy=S.user||'Unknown';}}
 function saveAll(){stamp();persist();}
 function saveSnap(cid){
-  var l=S.loc,arr=S[l].items[cid]||[];
+  saveSnapAt(S.loc,cid);
+}
+function saveSnapAt(l,cid){
+  var arr=S[l].items[cid]||[];
   if(!SNAPS[l])SNAPS[l]={};if(!SNAPS[l][cid])SNAPS[l][cid]=[];
   SNAPS[l][cid].unshift({ts:new Date().toISOString(),by:S.user||'Unknown',data:JSON.parse(JSON.stringify(arr))});
   if(SNAPS[l][cid].length>3)SNAPS[l][cid].pop();
@@ -931,53 +1001,36 @@ function showView(v){
 
 // ── DASHBOARD ─────────────────────────────────────────────────────
 function switchDL(l){S.dashLoc=l;document.getElementById('dl-sar').className='seg-btn'+(l==='sar'?' on':'');document.getElementById('dl-pin').className='seg-btn'+(l==='pin'?' on':'');renderDash();}
-function renderDash(){
-  var l=S.dashLoc,cs=cLoc(l).customers,now=Date.now(),wh=S[l].warehouse;
-  var allI=[];cs.forEach(function(c){(S[l].items[c.id]||[]).forEach(function(i){allI.push(i);});});
-  var placed=allI.filter(function(i){return i.done&&i.type==='color';}).length;
-  var total=allI.filter(function(i){return i.type==='color';}).length;
-  var active=cs.filter(function(c){return(S[l].items[c.id]||[]).some(function(i){return i.done&&i.type==='color';});}).length;
-  var ordCnt=allI.filter(function(i){return i.type==='color'&&i.status==='ordered';}).length;
-  var low=ALL_COLORS.filter(function(c){return(wh[c]||0)<=S.threshold;});
-  var staleCs=cs.filter(function(c){return c.updated&&Math.floor((now-new Date(c.updated).getTime())/86400000)>30;});
-  var ll=l==='sar'?'Sarasota':'Pinellas Park';
-  var ah='';
-  if(low.length)ah+='<div class="alert red"><div class="a-icon">🚨</div><div><div class="a-title">'+low.length+' color'+(low.length>1?'s':'')+' at/below reorder threshold</div><div class="a-text">'+low.slice(0,5).join(', ')+(low.length>5?' +more':'')+'</div></div></div>';
-  if(staleCs.length)ah+='<div class="alert orange"><div class="a-icon">⏰</div><div><div class="a-title">'+staleCs.length+' customer'+(staleCs.length>1?'s':'')+' not visited in 30+ days</div></div></div>';
-  if(ordCnt)ah+='<div class="alert gold"><div class="a-icon">📦</div><div><div class="a-title">'+ordCnt+' color'+(ordCnt>1?'s':'')+' ordered — pending placement</div></div></div>';
-  document.getElementById('d-alerts').innerHTML=ah;
-  document.getElementById('d-stats').innerHTML=
-    st('Customers','',cs.length,'in '+ll)+st('Active','teal',active,'with samples')+
-    st('Colors Out','',placed,'of '+total)+st('Low Stock','red',low.length,'at threshold');
-  var cm={},om={};ALL_COLORS.forEach(function(c){cm[c]=0;om[c]=0;});
-  cs.forEach(function(customer){
-    var states={};
-    (S[l].items[customer.id]||[]).forEach(function(i){
-      if(i.type!=='color'||cm[i.text]===undefined)return;
-      if(i.done)states[i.text]='placed';
-      else if(i.status==='ordered'&&states[i.text]!=='placed')states[i.text]='ordered';
-    });
-    Object.keys(states).forEach(function(color){if(states[color]==='placed')cm[color]++;else if(states[color]==='ordered')om[color]++;});
-  });
-  var mm={};ALL_COLORS.forEach(function(c){mm[c]=Math.max(0,cs.length-cm[c]-om[c]);});
-  var topMis=ALL_COLORS.slice().sort(function(a,b){return mm[b]-mm[a];}).slice(0,6);
-  var ai='';topMis.forEach(function(c){var s=esc(c);ai+='<div class="act-row" onclick="showColorMo(\''+l+'\',\''+s+'\')"><div><div class="act-name">'+html(c)+'</div><div class="act-sub">Missing from '+mm[c]+' customers</div></div><span class="tag red">'+mm[c]+' ›</span></div>';});
-  document.getElementById('d-action').innerHTML=ai||'<span style="font-size:12px;color:var(--teal);font-weight:600">✓ All colors well distributed!</span>';
-  document.getElementById('act-loc').textContent='· '+ll;
-  var stl=cs.map(function(c){var d=c.updated?Math.floor((now-new Date(c.updated).getTime())/86400000):999;return{c:c,days:d};}).filter(function(x){return x.days>30;}).sort(function(a,b){return b.days-a.days;}).slice(0,6);
-  var si='';stl.forEach(function(x){var s=esc(x.c.id);si+='<div class="act-row" onclick="openCust(\''+l+'\',\''+s+'\')"><div><div class="act-name">'+html(x.c.emoji)+' '+html(x.c.name)+'</div><div class="act-sub">'+(x.days===999?'Never updated':x.days+'d ago')+'</div></div><span class="tag orange">Visit needed ›</span></div>';});
-  document.getElementById('d-stale').innerHTML=si||'<span style="font-size:12px;color:var(--teal);font-weight:600">✓ All customers up to date!</span>';
-  document.getElementById('stale-loc').textContent='· '+ll;
-  var oi='';cs.forEach(function(c){var ord=(S[l].items[c.id]||[]).filter(function(i){return i.type==='color'&&i.status==='ordered';});if(ord.length){var s=esc(c.id);oi+='<div class="act-row" onclick="openCust(\''+l+'\',\''+s+'\')"><div><div class="act-name">'+html(c.emoji)+' '+html(c.name)+'</div><div class="act-sub">'+ord.map(function(i){return html(i.text);}).join(', ')+'</div></div><span class="tag blue">'+ord.length+' ›</span></div>';}});
-  document.getElementById('d-ordered').innerHTML=oi||'<span style="font-size:12px;color:var(--charcoal-light)">No orders pending</span>';
-  document.getElementById('ord-loc').textContent='· '+ll;
-  var sorted=ALL_COLORS.slice().sort(function(a,b){return cm[b]-cm[a];}).slice(0,8);var maxV=cm[sorted[0]]||1;var tc='';
-  sorted.forEach(function(c){var s=esc(c);tc+='<div class="color-row" onclick="showColorMo(\''+l+'\',\''+s+'\')"><div class="cn">'+c+'</div><div class="bw"><div class="bf" style="width:'+Math.round(cm[c]/maxV*100)+'%"></div></div><div class="cc">'+cm[c]+'</div></div>';});
-  document.getElementById('d-top').innerHTML=tc;document.getElementById('top-loc').textContent='· '+ll;
-  var cov='';ALL_COLORS.forEach(function(c){var pct=cs.length?Math.round(cm[c]/cs.length*100):0;var s=esc(c);cov+='<div class="color-row" onclick="showColorMo(\''+l+'\',\''+s+'\')"><div class="cn">'+c+'</div><div class="bw"><div class="bf" style="width:'+pct+'%"></div></div><div class="cc">'+cm[c]+'</div></div>';});
-  document.getElementById('d-cov').innerHTML=cov;document.getElementById('cov-loc').textContent='· '+ll;
+function moveVisitMonth(delta){CAL_MONTH=new Date(CAL_MONTH.getFullYear(),CAL_MONTH.getMonth()+delta,1);CAL_SELECTED=localDateValue(CAL_MONTH);renderDash();}
+function goVisitToday(){var t=new Date();CAL_MONTH=new Date(t.getFullYear(),t.getMonth(),1);CAL_SELECTED=localDateValue(t);renderDash();}
+function selectVisitDay(value){CAL_SELECTED=value;renderDash();}
+function getVisitRows(loc){
+  var rows=[];['sar','pin'].forEach(function(l){if(loc&&loc!==l)return;S[l].customers.forEach(function(c){(S[l].items[c.id]||[]).forEach(function(v){if(v&&v.type==='visit')rows.push({loc:l,cid:c.id,customer:c,visit:v,day:visitDateValue(v)});});});});
+  return rows;
 }
-function st(lbl,cls,val,sub){return'<div class="stat '+cls+'" onclick="showView(\'customers\')"><div class="stat-lbl">'+lbl+'</div><div class="stat-val">'+val+'</div><div class="stat-sub">'+sub+'</div></div>';}
+function renderDash(){
+  var l=S.dashLoc||'sar',monthStart=new Date(CAL_MONTH.getFullYear(),CAL_MONTH.getMonth(),1),monthKey=localDateValue(monthStart).slice(0,7);
+  var rows=getVisitRows(l),monthRows=rows.filter(function(r){return r.day.slice(0,7)===monthKey;}),byDay={};
+  monthRows.forEach(function(r){if(!byDay[r.day])byDay[r.day]={planned:0,completed:0};byDay[r.day][r.visit.visitStatus==='planned'?'planned':'completed']++;});
+  var planned=monthRows.filter(function(r){return r.visit.visitStatus==='planned';}).length,completed=monthRows.length-planned;
+  document.getElementById('visit-month-label').textContent=monthStart.toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  document.getElementById('visit-month-summary').textContent=monthRows.length+' visit'+(monthRows.length===1?'':'s')+' this month · '+planned+' planned · '+completed+' completed';
+  var calendar='<div class="visit-weekday">Sun</div><div class="visit-weekday">Mon</div><div class="visit-weekday">Tue</div><div class="visit-weekday">Wed</div><div class="visit-weekday">Thu</div><div class="visit-weekday">Fri</div><div class="visit-weekday">Sat</div>';
+  var first=new Date(monthStart.getFullYear(),monthStart.getMonth(),1-monthStart.getDay()),today=localDateValue(new Date());
+  for(var i=0;i<42;i++){
+    var d=new Date(first.getFullYear(),first.getMonth(),first.getDate()+i),value=localDateValue(d),counts=byDay[value]||{planned:0,completed:0};
+    var cls='visit-day'+(d.getMonth()!==monthStart.getMonth()?' outside':'')+(value===CAL_SELECTED?' selected':'')+(value===today?' today':'');
+    var count=counts.completed+counts.planned?'<span class="visit-day-count">'+(counts.completed?counts.completed+' done':'')+'</span>'+(counts.planned?'<span class="visit-day-count planned">'+counts.planned+' planned</span>':''):'';
+    calendar+='<button class="'+cls+'" onclick="selectVisitDay(\''+value+'\')" aria-label="'+prettyVisitDate(value)+'; '+counts.completed+' completed, '+counts.planned+' planned"><span class="visit-day-num">'+d.getDate()+'</span>'+count+'</button>';
+  }
+  document.getElementById('visit-calendar').innerHTML=calendar;
+  document.getElementById('visit-agenda-title').textContent=prettyVisitDate(CAL_SELECTED);
+  var dayRows=rows.filter(function(r){return r.day===CAL_SELECTED;}).sort(function(a,b){var sa=a.visit.visitStatus==='planned'?0:1,sb=b.visit.visitStatus==='planned'?0:1;return sa-sb||a.customer.name.localeCompare(b.customer.name);});
+  document.getElementById('visit-agenda-count').textContent=dayRows.length?dayRows.length+' visit'+(dayRows.length===1?'':'s'):'';
+  if(!dayRows.length){document.getElementById('visit-agenda-list').innerHTML='<div class="visit-empty">No visits on this date.<br><button class="visit-add" style="margin-top:10px" onclick="openVisitMo(\''+l+'\',null,\''+CAL_SELECTED+'\',\'planned\')">＋ Schedule a visit</button></div>';return;}
+  var agenda='';dayRows.forEach(function(r){var v=r.visit,plannedVisit=v.visitStatus==='planned',customerKey=esc(r.loc+'|'+r.cid),visitKey=esc(v.id);agenda+='<div class="visit-entry"><div class="visit-entry-main"><div class="visit-entry-name">'+html(r.customer.emoji)+' '+html(r.customer.name)+'<span class="visit-state'+(plannedVisit?' planned':'')+'">'+(plannedVisit?'Planned':'Completed')+'</span></div><div class="visit-entry-meta">'+(r.loc==='sar'?'Sarasota':'Pinellas Park')+' · '+html(v.visitBy||'Unknown')+'</div>'+(v.text?'<div class="visit-entry-note">'+html(v.text)+'</div>':'')+'</div><div class="visit-entry-actions">'+(plannedVisit?'<button class="visit-done" onclick="completeVisit(\''+customerKey+'\',\''+visitKey+'\')">Done</button>':'')+'<button onclick="editVisit(\''+customerKey+'\',\''+visitKey+'\')">Edit</button><button onclick="deleteVisit(\''+customerKey+'\',\''+visitKey+'\')" aria-label="Delete visit">✕</button></div></div>';});
+  document.getElementById('visit-agenda-list').innerHTML=agenda;
+}
 
 // ── COLOR MODAL ───────────────────────────────────────────────────
 function showColorMo(l,color){
@@ -1050,7 +1103,7 @@ function renderDetail(){
     '<span class="cust-upd">🕐 '+upd+'</span>'+(c.updatedBy?'<span class="cust-by">by '+html(c.updatedBy)+'</span>':'')+
     (days!==null&&days>30?'<span class="stale-w">⚠️ '+days+'d overdue</span>':'')+
     '</div><div class="cust-acts">'+
-    '<button class="cact" style="background:var(--gold);color:white" onclick="openMo(\'mo-visit\')">📋 Visit</button>'+
+    '<button class="cact" style="background:var(--gold);color:white" onclick="openVisitMo(\''+l+'\',\''+esc(c.id)+'\',localDateValue(new Date()),\'completed\')">📋 Log Visit</button>'+
     '<button class="cact" style="background:var(--teal);color:white" onclick="emailCust()">✉️ Email</button>'+
     '<button class="cact" style="background:var(--stone-mid)" onclick="openEC(\''+l+'\',\''+esc(c.id)+'\')">✏️ Edit</button>'+
     '<button class="cact" style="background:'+(c.starred?'var(--gold)':'var(--stone-mid)')+';color:'+(c.starred?'white':'inherit')+'" onclick="toggleStar(\''+l+'\',\''+esc(c.id)+'\');renderDetail()">'+( c.starred?'★ Starred':'☆ Star')+'</button>'+
@@ -1071,7 +1124,7 @@ function renderDetail(){
     '<div class="add-row"><input type="text" id="add-samp" placeholder="Add a color name…" maxlength="60" autocomplete="off"><button class="abtn gold" onclick="addSamp()">+</button></div>'+
     '<div class="add-row"><input type="text" id="add-note" placeholder="Add a note…" maxlength="120" autocomplete="off"><button class="abtn teal" onclick="addNote()">+</button></div>'+
     '</div><div id="item-list"></div>';
-  if(visits.length){h+='<div class="sec-lbl">📋 Visit Log</div><div class="dc">';visits.slice(0,5).forEach(function(v){h+='<div class="visit-item"><span style="font-size:16px">📋</span><div class="visit-body"><div class="visit-date">'+new Date(v.visitDate||Date.now()).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+'</div><div class="visit-by">by '+html(v.visitBy)+'</div>'+(v.text?'<div class="visit-note">'+html(v.text)+'</div>':'')+'</div></div>';});h+='</div>';}
+  if(visits.length){h+='<div class="sec-lbl">📋 Visit Log</div><div class="dc">';visits.slice().sort(function(a,b){return visitDateValue(b).localeCompare(visitDateValue(a));}).slice(0,8).forEach(function(v){var plannedVisit=v.visitStatus==='planned';h+='<div class="visit-item"><span style="font-size:16px">'+(plannedVisit?'🗓️':'📋')+'</span><div class="visit-body"><div class="visit-date">'+prettyVisitDate(visitDateValue(v),{month:'short',day:'numeric',year:'numeric'})+'<span class="visit-state'+(plannedVisit?' planned':'')+'">'+(plannedVisit?'Planned':'Completed')+'</span></div><div class="visit-by">by '+html(v.visitBy||'Unknown')+'</div>'+(v.text?'<div class="visit-note">'+html(v.text)+'</div>':'')+'</div></div>';});h+='</div>';}
   document.getElementById('cust-zone').innerHTML=h;
   document.getElementById('ph').innerHTML='<h2>'+html(c.emoji)+' '+html(c.name)+'</h2><p>'+(l==='sar'?'Sarasota':'Pinellas Park')+' · '+new Date().toLocaleDateString()+'</p>';
   var si=document.getElementById('add-samp'),ni=document.getElementById('add-note');
@@ -1232,12 +1285,43 @@ function saveNote(){
   for(var i=0;i<arr.length;i++){if(arr[i].id===NT.id){arr[i].note=document.getElementById('note-txt').value.trim();break;}}
   closeMo('mo-note');saveAll();renderItemList();showToast('Note saved 📝');NT=null;
 }
-function saveVisit(){
-  var note=document.getElementById('visit-txt').value.trim();
-  var l=S.loc;if(!S[l].items[S.activeCustomer])S[l].items[S.activeCustomer]=[];
-  S[l].items[S.activeCustomer].push({id:'v_'+Date.now(),text:note,type:'visit',visitDate:new Date().toISOString(),visitBy:S.user||'Unknown',done:false});
-  closeMo('mo-visit');saveAll();renderDetail();showToast('Visit logged! 📋');document.getElementById('visit-txt').value='';
+function fillVisitCustomers(selected){
+  var l=document.getElementById('visit-loc').value,select=document.getElementById('visit-customer'),q=(document.getElementById('visit-customer-search').value||'').trim().toLowerCase();
+  var keep=selected!==undefined?selected:select.value;select.innerHTML='';
+  var placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Choose a customer…';select.appendChild(placeholder);
+  S[l].customers.filter(function(c){return!q||c.name.toLowerCase().indexOf(q)!==-1;}).slice().sort(function(a,b){return a.name.localeCompare(b.name);}).forEach(function(c){var o=document.createElement('option');o.value=c.id;o.textContent=c.name;select.appendChild(o);});
+  select.value=keep&&Array.prototype.some.call(select.options,function(o){return o.value===keep;})?keep:'';
 }
+function changeVisitLocation(){fillVisitCustomers('');}
+function openVisitMo(loc,cid,date,status,editing){
+  VISIT_EDIT=editing||null;document.getElementById('visit-loc').value=loc||S.dashLoc||S.loc;
+  document.getElementById('visit-customer-search').value='';fillVisitCustomers(cid||'');
+  document.getElementById('visit-date').value=date||localDateValue(new Date());
+  document.getElementById('visit-status').value=status||'planned';
+  document.getElementById('visit-txt').value=editing?editing.visit.text||'':'';
+  document.getElementById('visit-modal-title').textContent=editing?'Edit Visit':'Add a Visit';
+  document.getElementById('visit-save-btn').textContent=editing?'Save Changes':'Save Visit';
+  openMo('mo-visit');
+}
+function findVisit(loc,cid,id){var arr=S[loc]&&S[loc].items[cid]||[];for(var i=0;i<arr.length;i++)if(arr[i].id===id&&arr[i].type==='visit')return arr[i];return null;}
+function editVisit(customerKey,visitId){var p=customerKey.split('|'),l=p[0],cid=p.slice(1).join('|'),v=findVisit(l,cid,visitId);if(!v)return;openVisitMo(l,cid,visitDateValue(v),v.visitStatus||'completed',{loc:l,cid:cid,id:visitId,visit:v});}
+function saveVisit(){
+  var l=document.getElementById('visit-loc').value,cid=document.getElementById('visit-customer').value,date=document.getElementById('visit-date').value,status=document.getElementById('visit-status').value,note=document.getElementById('visit-txt').value.trim();
+  if(!cid||!getCust(l,cid)){showToast('Choose a customer first');return;}
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){showToast('Choose a visit date');return;}
+  var v=VISIT_EDIT&&findVisit(VISIT_EDIT.loc,VISIT_EDIT.cid,VISIT_EDIT.id),target=S[l].items[cid]||(S[l].items[cid]=[]);
+  if(v){
+    saveSnapAt(VISIT_EDIT.loc,VISIT_EDIT.cid);
+    if(VISIT_EDIT.loc!==l||VISIT_EDIT.cid!==cid){S[VISIT_EDIT.loc].items[VISIT_EDIT.cid]=S[VISIT_EDIT.loc].items[VISIT_EDIT.cid].filter(function(x){return x.id!==v.id;});saveSnapAt(l,cid);target.push(v);}
+    v.visitDate=date;v.visitStatus=status;v.text=note;v.visitBy=S.user||v.visitBy||'Unknown';
+  }else{
+    saveSnapAt(l,cid);v={id:'v_'+Date.now(),type:'visit',visitDate:date,visitStatus:status,visitBy:S.user||'Unknown',text:note,done:false};target.push(v);
+  }
+  if(status==='completed')stampAt(l,cid);
+  VISIT_EDIT=null;closeMo('mo-visit');persist();renderAll();showToast(status==='planned'?'Visit scheduled 🗓️':'Visit saved ✅');
+}
+function completeVisit(customerKey,visitId){var p=customerKey.split('|'),l=p[0],cid=p.slice(1).join('|'),v=findVisit(l,cid,visitId);if(!v)return;saveSnapAt(l,cid);v.visitStatus='completed';v.visitBy=S.user||v.visitBy||'Unknown';stampAt(l,cid);persist();renderAll();showToast('Visit marked completed ✅');}
+function deleteVisit(customerKey,visitId){if(!confirm('Delete this visit entry?'))return;var p=customerKey.split('|'),l=p[0],cid=p.slice(1).join('|');saveSnapAt(l,cid);S[l].items[cid]=(S[l].items[cid]||[]).filter(function(v){return!(v.id===visitId&&v.type==='visit');});persist();renderAll();showToast('Visit removed');}
 function toggleStar(l,cid){var c=getCust(l,cid);if(!c)return;c.starred=!c.starred;persist();renderSB();if(S.showDetail)renderDetail();else renderBrowser();showToast(c.starred?'★ Starred!':'Unstarred');}
 function delCust(l,cid,name){
   if(!confirm('Delete "'+name+'"? Cannot be undone.'))return;
@@ -1423,9 +1507,6 @@ try{localStorage.setItem(KEY,JSON.stringify(mkPayload()));}catch(e){}
 OFFLINE_Q=localStorage.getItem(KEY+'_pending')||null;
 if(OFFLINE_Q)syncWarning('This device has unsynced changes from a previous session. Cloud sync is paused to protect them.');
 if(window.innerWidth<=600)S.sbOpen=false;
-var h = new Date().getHours();
-document.getElementById('greet').textContent = h<12?'morning':h<17?'afternoon':'evening';
-document.getElementById('gdate').textContent = new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
 document.getElementById('thresh').value = S.threshold;
 updateUserUI();
 applySB();
