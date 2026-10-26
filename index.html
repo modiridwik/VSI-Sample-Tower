@@ -554,17 +554,55 @@ var KEY='vsi_v1';
 var VSI_Q='';
 var SB_URL='https://mkmwibwhakvewiyajzeg.supabase.co/rest/v1';
 var SB_KEY='sb_publishable_2BxGeGW40y26eOt30XbwYg_Q0jf0Stc';
-var ALL_COLORS=['ARGENTO VIVO','ARTICO','BLUE LAGOON','CALACATTA GOLD','CASPIAN','CHICAGO','DANBY','DIVINITY','HAZE SJ','LUCE DORATA','LUNA','LUNA PIENA','MAGNIFICO','MAGNIFICO SJ','MAGNUS','MAREA OSCURA','NAPALITANO GOLD','NEBBIA','NERO MARQUINA','ORO LUCENTE','PIENZA','RAGGIO DI SOLE','RIPPLE','RIVIERA GOLD','SABBIA','SIENA GOLD','TAJ DARK','TAJ LIGHT','TERRA BIANCO','TERRA UMBROSSA','VULCANICA','WHITE CHRYSTALLO','WHITE LUX','WHITE TAJ','WINTERCREEK'];
+var CATALOG_VERSION=2;
+var ALL_COLORS=['BLUE NIMBUS','CASPIAN','CIELO BLUE','DANBY','DESERT MIST','GOLDEN DIVINITY','GOLDEN RIDGE','HAZE','LUNA','MAGNUS','MONARCH','NERO MARQUINA','RIVERA GOLD','SIENNA GOLD','VERONA GOLD','WHITE BIRCH','WINTERCREEK','LINCOLN','TERRA BIANCO','MAGNIFICO SJ','CRISTALLO SUPREME','MONT BLANC','TAJ DARK SJ','TAJ LIGHT SJ','WHITE TAJ MAHAL','VAGLI','CREMO','CRISTALLO ORO','CRISTALLO ORO 2CM','NAPOLITANO','PIENZA','ARCTICO','ARGENTEO VIVO','LUCE DORATA','LUNA PIENA','MAREA OSCURA',"NEBBIA D'ALBA",'ORO LUCENTE','RAGGIO DI SOLE','SABBIA','TERRA OMBROSA','VULCANICA'];
+var COLOR_ALIASES={'ARGENTO VIVO':'ARGENTEO VIVO','ARTICO':'ARCTICO','CALACATTA LINCOLN':'LINCOLN','DIVINITY':'GOLDEN DIVINITY','HAZE SJ':'HAZE','NAPALITANO GOLD':'NAPOLITANO','RIVIERA GOLD':'RIVERA GOLD','SIENA GOLD':'SIENNA GOLD','TAJ DARK':'TAJ DARK SJ','TAJ LIGHT':'TAJ LIGHT SJ','TERRA UMBROSSA':'TERRA OMBROSA','WHITE TAJ':'WHITE TAJ MAHAL'};
+var COLOR_SET={};ALL_COLORS.forEach(function(c){COLOR_SET[c]=true;});
 var DISP=[{id:'dt_r',label:'R-Tower'},{id:'dt_q',label:'Q-Tower'},{id:'dt_l',label:'L-Tower'},{id:'dt_v',label:'V-Tower'},{id:'dt_w',label:'Wall'}];
 var DC=[{id:'l_301',name:'301',emoji:'📌',tier:'b'},{id:'l_abf',name:'ABSOLUTE FLOOR',emoji:'🪟',tier:'b'},{id:'l_adv',name:'ADVANCED',emoji:'⚡',tier:'b'},{id:'l_ag',name:'ALL GRANITE',emoji:'💎',tier:'a'},{id:'l_aio',name:'All in one-',emoji:'🔄',tier:'c'},{id:'l_all',name:'ALLURE',emoji:'✨',tier:'b'},{id:'l_alp',name:'ALPHA-',emoji:'🔤',tier:'c'},{id:'l_ang',name:'ANGELINA',emoji:'👼',tier:'b'},{id:'l_arch',name:'ARCHITECTURAL MARBLE',emoji:'🏗️',tier:'a'},{id:'l_cas',name:'CASTILLO',emoji:'🏰',tier:'b'},{id:'l_cc',name:'CARLOS CASTRO',emoji:'👤',tier:'b'},{id:'l_cut',name:'Cutting EDGE',emoji:'✂️',tier:'c'},{id:'l_dis',name:'DISTINCTIVE',emoji:'🌟',tier:'b'},{id:'l_dnw',name:'D&W',emoji:'🔧',tier:'b'},{id:'l_eag',name:'EAGLE STONE',emoji:'🦅',tier:'a'},{id:'l_eg',name:'EXPORT GRANITE',emoji:'🪨',tier:'a'},{id:'l_em',name:'EUROPEAN MARBLE',emoji:'🏛️',tier:'a'},{id:'l_fc',name:'FINE COUNTERTOPS',emoji:'🔲',tier:'b'},{id:'l_fco',name:'Fine Counters',emoji:'🪞',tier:'c'},{id:'l_ft1',name:'FINAL TOUCH',emoji:'🎯',tier:'b'},{id:'l_ft2',name:'FINAL TOUCH 2',emoji:'🎯',tier:'b'},{id:'l_gal',name:'GALLERIA',emoji:'🖼️',tier:'b'},{id:'l_gue',name:'GUERRING',emoji:'🏗️',tier:'c'},{id:'l_ias',name:'IAS',emoji:'🏢',tier:'b'},{id:'l_ias2',name:'IAS 2',emoji:'🏢',tier:'b'},{id:'l_ink',name:'INKA STONE',emoji:'🪨',tier:'c'},{id:'l_inn',name:'INNOVATIVE',emoji:'💡',tier:'b'},{id:'l_iss',name:'INFINITE STONE SOLUTION',emoji:'♾️',tier:'a'},{id:'l_kev',name:'KEVINSTONE',emoji:'🪵',tier:'b'},{id:'l_nss',name:'NSS',emoji:'🏠',tier:'a'},{id:'l_ome',name:'OMEGA',emoji:'🔱',tier:'b'},{id:'l_phx',name:'PHOENIX',emoji:'🔥',tier:'a'},{id:'l_pla',name:'PLANET STONE',emoji:'🌍',tier:'b'},{id:'l_rig',name:'RIGO',emoji:'📐',tier:'b'},{id:'l_sag',name:'SAG',emoji:'📋',tier:'b'},{id:'l_scd',name:'Suncoast Granite Design',emoji:'🌴',tier:'b'},{id:'l_sea',name:'SEASHORE',emoji:'🌊',tier:'b'},{id:'l_sgm',name:'Sarasota Granite Man',emoji:'👷',tier:'b'},{id:'l_sgq',name:'SARASOTA GRANITE & QUARTZ',emoji:'💠',tier:'a'},{id:'l_sig',name:'SIGNATURE',emoji:'✍️',tier:'a'},{id:'l_skc',name:'SARASOTA KITCHEN COMPANY',emoji:'🍳',tier:'b'},{id:'l_ssrq',name:'SUNMAC SRQ',emoji:'☀️',tier:'b'},{id:'l_tm',name:'T&M',emoji:'🔨',tier:'b'},{id:'l_tsi',name:'TILE AND STONE OF ITALY',emoji:'🇮🇹',tier:'b'},{id:'l_uk',name:'UNIQUE KITCHEN',emoji:'🍽️',tier:'b'},{id:'l_val',name:'VALENCIA',emoji:'🌺',tier:'b'},{id:'l_vf',name:'VISION/FALFAS',emoji:'👁️',tier:'b'},{id:'l_vol',name:'VOLCANO',emoji:'🌋',tier:'b'},{id:'l_wes',name:'WESTONE',emoji:'🧱',tier:'b'},{id:'l_whi',name:'WHITLOW',emoji:'⬜',tier:'c'}];
 DC.sort(function(a,b){return a.name.toLowerCase()<b.name.toLowerCase()?-1:1;});
 function mkItems(p){return ALL_COLORS.map(function(c,i){return{id:p+'_c'+i,text:c,done:false,status:'none',type:'color',note:''};})}
 function mkWH(){var o={};ALL_COLORS.forEach(function(c){o[c]=0;});return o;}
+function normalizeCollection(data){
+  if(!data||typeof data!=='object')return false;
+  var changed=data.catalog_version!==CATALOG_VERSION;
+  ['sar','pin'].forEach(function(l){
+    var loc=data[l];if(!loc||typeof loc!=='object')return;
+    if(!loc.items||typeof loc.items!=='object'||Array.isArray(loc.items)){loc.items={};changed=true;}
+    var ids={};(loc.customers||[]).forEach(function(c){if(c&&c.id)ids[c.id]=true;});
+    Object.keys(loc.items).forEach(function(id){ids[id]=true;});
+    Object.keys(ids).forEach(function(id){
+      var arr=Array.isArray(loc.items[id])?loc.items[id]:[];
+      var seen={};
+      arr.forEach(function(item){
+        if(!item||item.type!=='color')return;
+        var old=String(item.text||'').trim(),name=COLOR_ALIASES[old]||old;
+        if(!COLOR_SET[name]){item.type='legacy';item.legacyReason='not in active collection';item.originalText=item.originalText||old;changed=true;return;}
+        if(seen[name]){item.type='legacy';item.legacyReason='duplicate after catalog update';item.originalText=item.originalText||old;changed=true;return;}
+        seen[name]=true;
+        if(old!==name){item.originalText=item.originalText||old;item.text=name;changed=true;}
+      });
+      ALL_COLORS.forEach(function(name,i){
+        if(!seen[name]){arr.push({id:id+'_catalog2_'+i,text:name,done:false,status:'none',type:'color',note:''});seen[name]=true;changed=true;}
+      });
+      loc.items[id]=arr;
+    });
+    if(!loc.warehouse||typeof loc.warehouse!=='object'||Array.isArray(loc.warehouse)){loc.warehouse={};changed=true;}
+    Object.keys(COLOR_ALIASES).forEach(function(old){
+      var name=COLOR_ALIASES[old];
+      if(loc.warehouse[name]===undefined){loc.warehouse[name]=Number(loc.warehouse[old])||0;changed=true;}
+      else if(!(Number(loc.warehouse[name])>0)&&Number(loc.warehouse[old])>0){loc.warehouse[name]=Number(loc.warehouse[old]);changed=true;}
+    });
+    ALL_COLORS.forEach(function(name){if(loc.warehouse[name]===undefined){loc.warehouse[name]=0;changed=true;}});
+  });
+  if(data.catalog_version!==CATALOG_VERSION){data.catalog_version=CATALOG_VERSION;changed=true;}
+  return changed;
+}
 
 var S,SNAPS={},NT=null,ET=null;
 
 function defState(){
-  var o={user:null,threshold:2,sbLoc:'sar',dashLoc:'sar',whLoc:'sar',cbLoc:'sar',loc:'sar',activeCustomer:null,activeView:'dash',showDetail:false,cbSearch:'',sbOpen:window.innerWidth>600,
+  var o={catalog_version:CATALOG_VERSION,user:null,threshold:2,sbLoc:'sar',dashLoc:'sar',whLoc:'sar',cbLoc:'sar',loc:'sar',activeCustomer:null,activeView:'dash',showDetail:false,cbSearch:'',sbOpen:window.innerWidth>600,
     sar:{customers:JSON.parse(JSON.stringify(DC)),items:{},warehouse:mkWH()},
     pin:{customers:[],items:{},warehouse:mkWH()}};
   o.sar.customers.forEach(function(c){o.sar.items[c.id]=mkItems(c.id);});
@@ -633,7 +671,7 @@ function clearLocalPhotoBackups(){
 }
 function mkPayload(){
   stripPhotos(S);
-  return{saved_at:S.saved_at,user:S.user,threshold:S.threshold,sar:{customers:S.sar.customers,items:S.sar.items,warehouse:S.sar.warehouse},pin:{customers:S.pin.customers,items:S.pin.items,warehouse:S.pin.warehouse}};
+  return{catalog_version:CATALOG_VERSION,saved_at:S.saved_at,user:S.user,threshold:S.threshold,sar:{customers:S.sar.customers,items:S.sar.items,warehouse:S.sar.warehouse},pin:{customers:S.pin.customers,items:S.pin.items,warehouse:S.pin.warehouse}};
 }
 var SNAP_KEY='vsi_snaps';
 var LAST_SNAP_TS=0;
@@ -678,7 +716,7 @@ function renderSnapList(){
 function applySnapData(snap){
   if(!snap)return;
   if(!confirm('Restore snapshot from '+new Date(snap.ts).toLocaleString()+'?\nThis will replace all current data.'))return;
-  var d=stripPhotos(snap.data);
+  var d=stripPhotos(snap.data);normalizeCollection(d);
   if(d.sar){S.sar.customers=d.sar.customers||S.sar.customers;S.sar.items=d.sar.items||{};S.sar.warehouse=d.sar.warehouse||{};}
   if(d.pin){S.pin.customers=d.pin.customers||[];S.pin.items=d.pin.items||{};S.pin.warehouse=d.pin.warehouse||{};}
   S.threshold=d.threshold!==undefined?d.threshold:S.threshold;
@@ -711,12 +749,12 @@ function load(){
     if(!raw)return defState();
     var d=JSON.parse(raw),s=defState();
     s.user=(S&&S.user)||d.user||null;s.threshold=d.threshold!==undefined?d.threshold:2;
-    s.saved_at=d.saved_at||null;
+    s.catalog_version=d.catalog_version||0;s.saved_at=d.saved_at||null;
     if(d.sar){if(d.sar.customers&&d.sar.customers.length)s.sar.customers=d.sar.customers;if(d.sar.items)s.sar.items=d.sar.items;if(d.sar.warehouse)s.sar.warehouse=d.sar.warehouse;}
     if(d.pin){if(d.pin.customers)s.pin.customers=d.pin.customers;if(d.pin.items)s.pin.items=d.pin.items;if(d.pin.warehouse)s.pin.warehouse=d.pin.warehouse;}
     s.sar.customers.forEach(function(c){if(!s.sar.items[c.id])s.sar.items[c.id]=mkItems(c.id);});
     s.pin.customers.forEach(function(c){if(!s.pin.items[c.id])s.pin.items[c.id]=[];});
-    return stripPhotos(s);
+    normalizeCollection(s);return stripPhotos(s);
   }catch(e){return defState();}
 }
 function sbHeaders(){return{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json'};}
@@ -767,9 +805,10 @@ function applyRemote(row,silent){
     setTimeout(function(){applyRemote(row,silent);},5000);return;
   }
   var d=stripPhotos(row.data);
+  var catalogChanged=normalizeCollection(d);
   var remoteTs=new Date(row.updated_at||0).getTime();
   var localTs=new Date(S.saved_at||0).getTime();
-  if(d.saved_at===S.saved_at){SB_REV=row.updated_at;return;}
+  if(d.saved_at===S.saved_at){SB_REV=row.updated_at;if(catalogChanged)persist();return;}
   if(remoteTs<localTs){syncWarning('This device has newer local changes. Cloud sync is paused to protect both copies.');return;}
   var remCust=(d.sar&&d.sar.customers?d.sar.customers.length:0)+(d.pin&&d.pin.customers?d.pin.customers.length:0);
   var locCust=S.sar.customers.length+S.pin.customers.length;
@@ -796,6 +835,7 @@ function applyRemote(row,silent){
   localStorage.setItem(KEY,JSON.stringify(d));
   document.getElementById('thresh').value=S.threshold;
   updateUserUI();renderAll();
+  if(catalogChanged){persist();return;}
   if(!silent)showToast('☁️ Synced from cloud');
 }
 function checkRemoteRevision(){
@@ -1033,6 +1073,7 @@ function goBack(){S.showDetail=false;renderBrowser();}
 function renderItemList(){
   var its=S[S.loc].items[S.activeCustomer]||[];
   var notes=its.filter(function(i){return i.type==='note';});
+  var legacy=its.filter(function(i){return i.type==='legacy';});
   var placed=its.filter(function(i){return i.done&&i.type==='color';});
   var ordered=its.filter(function(i){return i.status==='ordered'&&i.type==='color';});
   var nr=its.filter(function(i){return i.status==='needs-rep'&&i.type==='color';});
@@ -1043,6 +1084,7 @@ function renderItemList(){
   if(ordered.length)addSec(c,'📦 Ordered — Pending · '+ordered.length,ordered);
   if(nr.length)addSec(c,'🔄 Needs Replacement · '+nr.length,nr);
   if(np.length)addSec(c,'⬜ Not Placed · '+np.length,np);
+  if(legacy.length)addSec(c,'📚 Archived selections · '+legacy.length,legacy);
   if(placed.length){var cb=document.createElement('button');cb.className='clear-btn';cb.innerHTML='↩ Uncheck all';cb.onclick=clearColors;c.appendChild(cb);}
 }
 function addSec(c,lbl,arr){var l=document.createElement('div');l.className='sec-lbl';l.textContent=lbl;c.appendChild(l);var u=document.createElement('div');u.className='items-list';arr.forEach(function(i){u.appendChild(buildItem(i));});c.appendChild(u);}
@@ -1051,11 +1093,11 @@ function buildItem(item){
   var cls='item';if(item.type==='color'){if(item.done)cls+=' placed';else if(item.status==='needs-rep')cls+=' needs-rep';else if(item.status==='ordered')cls+=' ordered';}
   el.className=cls;
   var chk=document.createElement('button');chk.className='chk'+(item.done?' on':'');
-  if(item.type==='note')chk.style.visibility='hidden';
+  if(item.type!=='color')chk.style.visibility='hidden';
   chk.onclick=function(){toggleColor(item.id,chk);};el.appendChild(chk);
   var body=document.createElement('div');body.className='item-body';
   var txt=document.createElement('div');txt.className=item.type==='note'?'item-note-txt':'item-txt';
-  txt.contentEditable='true';txt.spellcheck=false;txt.textContent=item.text;
+  txt.contentEditable=item.type!=='color';txt.spellcheck=false;txt.textContent=item.text;
   var _iid=item.id;
   txt.onblur=function(){
     var v=txt.textContent.trim();if(!v){txt.textContent=item.text;return;}
@@ -1066,6 +1108,10 @@ function buildItem(item){
   txt.onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();txt.blur();}};
   body.appendChild(txt);
   if(item.note){var ni=document.createElement('div');ni.className='item-note-inline';ni.textContent='📝 '+item.note;body.appendChild(ni);}
+  if(item.type==='legacy'){
+    var oldStatus=item.done?'previously placed':item.status==='ordered'?'previously ordered':item.status==='needs-rep'?'previously marked for replacement':'retired from active collection';
+    var li=document.createElement('div');li.className='item-note-inline';li.textContent='📚 Archived · '+oldStatus;body.appendChild(li);
+  }
   el.appendChild(body);
   if(item.type==='color'){
     var ir=document.createElement('div');ir.className='item-right';
@@ -1340,7 +1386,7 @@ function restoreBackup(inp){
   var r=new FileReader();r.onload=function(e){
     try{var b=JSON.parse(e.target.result);if(!b.version)throw new Error('Invalid file');
       if(!confirm('Restore from '+new Date(b.exportedAt).toLocaleString()+'? Replaces ALL current data.'))return;
-      stripPhotos(b);var sd=b.sar||b.sarasota,pd=b.pin||b.pinellas;
+      stripPhotos(b);normalizeCollection(b);var sd=b.sar||b.sarasota,pd=b.pin||b.pinellas;
       if(sd){S.sar.customers=sd.customers||S.sar.customers;S.sar.items=sd.items||{};S.sar.warehouse=sd.warehouse||{};}
       if(pd){S.pin.customers=pd.customers||[];S.pin.items=pd.items||{};S.pin.warehouse=pd.warehouse||{};}
       persist();renderAll();bkSt('✅ Data restored!',true);inp.value='';
