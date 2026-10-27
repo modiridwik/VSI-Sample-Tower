@@ -29,7 +29,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .tbb{width:34px;height:34px;border-radius:var(--rs);border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:white;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.2s;}
 .tbb:hover{background:rgba(255,255,255,0.18);}
 #tb-logo{height:28px;object-fit:contain;flex-shrink:0;filter:brightness(0) invert(1);}
-#tb-title{font-family:Georgia,serif;font-size:16px;color:white;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#tb-home{display:flex;align-items:center;gap:8px;flex:1;min-width:0;padding:0;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer;}
+#tb-home:focus-visible{outline:2px solid var(--gold-mid);outline-offset:3px;border-radius:4px;}
+#tb-title{font-family:Georgia,serif;font-size:16px;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 #tb-title span{color:var(--gold-mid);}
 .tb-tabs{display:flex;gap:3px;flex-shrink:0;}
 .tb-tab{padding:5px 11px;border-radius:50px;border:1.5px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.08);font-family:-apple-system,sans-serif;font-weight:600;font-size:11px;color:rgba(255,255,255,0.8);cursor:pointer;transition:all 0.2s;white-space:nowrap;}
@@ -578,8 +580,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <!-- TOPBAR -->
 <div id="topbar">
   <button class="tbb" onclick="toggleSB()">☰</button>
-  <img id="tb-logo" src="https://vsisurfaces.com/wp-content/uploads/2025/11/VSI_quartz_counters_in_florida-transparent-130x80.png" alt="VSI" onerror="this.style.display='none'">
-  <div id="tb-title">Sample <span>Tracker</span></div>
+  <button id="tb-home" type="button" onclick="showView('dash')" aria-label="Home — open dashboard" title="Home">
+    <img id="tb-logo" src="https://vsisurfaces.com/wp-content/uploads/2025/11/VSI_quartz_counters_in_florida-transparent-130x80.png" alt="">
+    <span id="tb-title">Sample <span>Tracker</span></span>
+  </button>
   <div class="tb-tabs">
     <button class="tb-tab on" onclick="showView('dash')">Dashboard</button>
     <button class="tb-tab" onclick="showView('customers')">Customers</button>
