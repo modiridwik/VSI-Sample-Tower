@@ -274,6 +274,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .day-section-title small{font:500 10px -apple-system,sans-serif;color:var(--charcoal-light);margin-left:5px;}
 .visit-empty{text-align:center;color:var(--charcoal-light);font-size:12px;padding:20px 8px;}
 .visit-form-label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--charcoal-light);margin:2px 0 5px;}
+.dash-summary{margin:0 0 10px;}
+.dash-summary .stat{cursor:default;}
+.smart-row{display:flex;align-items:flex-start;gap:9px;padding:9px 0;border-bottom:1px solid var(--stone-mid);}
+.smart-row:last-child{border-bottom:0;padding-bottom:0;}
+.smart-icon{font-size:16px;flex:0 0 22px;text-align:center;}
+.smart-copy{flex:1;min-width:0;font-size:11px;line-height:1.45;color:var(--charcoal-mid);}
+.smart-copy strong{display:block;font-size:12px;color:var(--charcoal);margin-bottom:2px;}
+.smart-row button{border:1px solid var(--stone-dark);border-radius:6px;background:var(--white);padding:6px 8px;font:600 10px -apple-system,sans-serif;cursor:pointer;white-space:nowrap;color:var(--teal);}
 @media(max-width:600px){
   .visit-day{min-height:55px;padding:4px 3px;gap:2px;}
   .visit-day.selected{padding:3px 2px;}
@@ -613,6 +621,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="visit-actions"><button class="visit-add" onclick="openVisitMo(S.dashLoc,null,CAL_SELECTED,'planned')">＋ Add Visit</button><button class="visit-add task-add" onclick="openTaskMo(S.dashLoc,null,CAL_SELECTED)">＋ Add Task</button></div>
     </div>
     <div class="dash-top"><div class="seg"><button class="seg-btn on" id="dl-sar" onclick="switchDL('sar')">📍 Sarasota</button><button class="seg-btn" id="dl-pin" onclick="switchDL('pin')">📍 Pinellas Park</button></div></div>
+    <div class="stat-grid dash-summary" id="dash-summary"></div>
+    <div class="dc" id="dash-smart"></div>
     <div class="visit-mode-tabs"><button id="visit-tab-day" onclick="switchDashboardMode('day')">Day Planner</button><button id="visit-tab-month" onclick="switchDashboardMode('month')">Month</button><button id="visit-tab-history" onclick="switchDashboardMode('history')">History</button></div>
     <div id="visit-day-view" class="dc">
       <div class="visit-nav">
@@ -1065,6 +1075,20 @@ function getVisitRows(loc){
   return rows;
 }
 function getTaskRows(loc){var rows=[];['sar','pin'].forEach(function(l){if(loc&&loc!==l)return;S[l].customers.forEach(function(c){(S[l].items[c.id]||[]).forEach(function(t){if(t&&t.type==='task')rows.push({loc:l,cid:c.id,customer:c,task:t,due:t.dueDate||''});});});});return rows;}
+function renderDashSummary(loc){
+  var today=localDateValue(new Date()),month=today.slice(0,7),customers=S[loc].customers||[],visits=getVisitRows(loc),tasks=getTaskRows(loc),monthVisits=visits.filter(function(r){return r.day.slice(0,7)===month;}),completed=monthVisits.filter(function(r){return r.visit.visitStatus!=='planned';}),planned=monthVisits.filter(function(r){return r.visit.visitStatus==='planned';}),met={};
+  completed.forEach(function(r){met[r.cid]=true;});var metCount=Object.keys(met).length,open=tasks.filter(function(r){return r.task.taskStatus!=='done';}),overdue=open.filter(function(r){return r.due&&r.due<today;});
+  document.getElementById('dash-summary').innerHTML='<div class="stat teal"><div class="stat-lbl">Customers met this month</div><div class="stat-val">'+metCount+'<span style="font:500 13px -apple-system,sans-serif;color:var(--charcoal-light)"> / '+customers.length+'</span></div><div class="stat-sub">Unique customers · monthly target</div></div><div class="stat"><div class="stat-lbl">Completed visits</div><div class="stat-val">'+completed.length+'</div><div class="stat-sub">This month</div></div><div class="stat"><div class="stat-lbl">Planned visits</div><div class="stat-val">'+planned.length+'</div><div class="stat-sub">This month</div></div><div class="stat'+(overdue.length?' red':'')+'"><div class="stat-lbl">Open follow-ups</div><div class="stat-val">'+open.length+'</div><div class="stat-sub">'+overdue.length+' overdue</div></div>';
+  var remaining=Math.max(0,customers.length-metCount),monthEnd=new Date(new Date().getFullYear(),new Date().getMonth()+1,0),daysLeft=Math.max(1,monthEnd.getDate()-new Date().getDate()+1),perDay=Math.ceil(remaining/daysLeft),ideas=[];
+  ideas.push('<div class="smart-row"><span class="smart-icon">🎯</span><div class="smart-copy"><strong>Monthly coverage goal</strong>Meet each customer once this month: '+metCount+' of '+customers.length+' visited. '+(remaining?remaining+' more customer'+(remaining===1?'':'s')+' to go — about '+perDay+' per day through month-end.':'All customers have a completed visit logged this month.')+'</div></div>');
+  if(overdue.length)ideas.push('<div class="smart-row"><span class="smart-icon">⏰</span><div class="smart-copy"><strong>Clear overdue follow-ups</strong>'+overdue.length+' task'+(overdue.length===1?' is':'s are')+' past due. Open today\'s planner to review them.</div><button onclick="goVisitToday();switchDashboardMode(\'day\')">Review</button></div>');
+  var cutoff=new Date();cutoff.setDate(cutoff.getDate()-14);var cutoffKey=localDateValue(cutoff),recent=completed.length?completed:visits.filter(function(r){return r.visit.visitStatus!=='planned';});
+  recent=recent.filter(function(r){return r.day>=cutoffKey&&!open.some(function(t){return t.cid===r.cid;});}).sort(function(a,b){return b.day.localeCompare(a.day);});
+  recent.slice(0,3).forEach(function(r){var key=esc(r.loc+'|'+r.cid),vid=esc(r.visit.id);ideas.push('<div class="smart-row"><span class="smart-icon">💬</span><div class="smart-copy"><strong>Suggested follow-up · '+html(r.customer.name)+'</strong>Recent visit on '+prettyVisitDate(r.day,{month:'short',day:'numeric'})+'. Add a reminder for next week.</div><button onclick="addSuggestedFollowup(\''+key+'\',\''+vid+'\')">Add task</button></div>');});
+  if(!remaining&&!overdue.length&&!recent.length)ideas.push('<div class="smart-row"><span class="smart-icon">✨</span><div class="smart-copy"><strong>You are up to date</strong>No overdue tasks or recent visits needing a follow-up were found.</div></div>');
+  document.getElementById('dash-smart').innerHTML='<div class="dc-title">🧭 Smart goals & next steps <span>Based on your visit and task records</span></div>'+ideas.join('');
+}
+function addSuggestedFollowup(customerKey,visitId){var p=customerKey.split('|'),l=p[0],cid=p.slice(1).join('|'),v=findVisit(l,cid,visitId);if(!v)return;var due=dateFromValue(visitDateValue(v));due.setDate(due.getDate()+7);openTaskMo(l,cid,localDateValue(due),null,visitId);document.getElementById('task-title').value='Follow up after visit';if(v.text)document.getElementById('task-notes').value='Visit note: '+v.text;}
 function taskMarkup(r,showCustomer){
   var t=r.task,done=t.taskStatus==='done',key=esc(r.loc+'|'+r.cid),id=esc(t.id),customer=showCustomer?'<div class="visit-entry-meta">'+html(r.customer.emoji)+' '+html(r.customer.name)+' · '+(r.loc==='sar'?'Sarasota':'Pinellas Park')+'</div>':'';
   return'<div class="task-entry"><div class="visit-entry-name">'+html(t.text||'Untitled task')+'<span class="task-state'+(done?' done':'')+'">'+(done?'Done':'Open')+'</span></div>'+customer+'<div class="visit-entry-meta">Assigned to '+html(t.assignedTo||'Unassigned')+(t.sourceVisitId?' · From a visit':'')+'</div>'+(t.dueDate?'<div class="task-due">Due '+prettyVisitDate(t.dueDate,{month:'short',day:'numeric',year:'numeric'})+(done&&t.completedAt?' · Completed '+new Date(t.completedAt).toLocaleDateString():'')+'</div>':'<div class="visit-entry-meta">No due date</div>')+(t.note?'<div class="visit-entry-note">'+html(t.note)+'</div>':'')+'<div class="task-tools"><button class="task-check" onclick="toggleTask(\''+key+'\',\''+id+'\')">'+(done?'Reopen':'Mark done')+'</button><button onclick="editTask(\''+key+'\',\''+id+'\')">Edit</button><button onclick="deleteTask(\''+key+'\',\''+id+'\')">Delete</button></div></div>';
@@ -1075,6 +1099,7 @@ function visitMarkup(r){
 }
 function setTaskSection(id,title,rows,showCustomer){var el=document.getElementById(id);if(!el)return;el.innerHTML=rows.length?'<div class="day-section"><div class="day-section-title">'+title+' <small>'+rows.length+'</small></div>'+rows.map(function(r){return taskMarkup(r,showCustomer);}).join('')+'</div>':'<div class="visit-empty">No tasks here.</div>';}
 function renderDash(){
+  var l=S.dashLoc||'sar';renderDashSummary(l);
   document.getElementById('visit-day-view').style.display=DASH_MODE==='day'?'block':'none';
   document.getElementById('visit-month-view').style.display=DASH_MODE==='month'?'block':'none';
   document.getElementById('visit-history-view').style.display=DASH_MODE==='history'?'block':'none';
@@ -1495,22 +1520,24 @@ function doRestore(idx){
 function emailCust(){
   var l=S.loc,c=getCust(l,S.activeCustomer);if(!c)return;
   var its=S[l].items[S.activeCustomer]||[];
-  var pl=its.filter(function(i){return i.done&&i.type==='color';});
-  var np=its.filter(function(i){return!i.done&&i.type==='color'&&i.status!=='ordered';});
-  var ord=its.filter(function(i){return i.type==='color'&&i.status==='ordered';});
-  var nr=its.filter(function(i){return i.type==='color'&&i.status==='needs-rep';});
-  var notes=its.filter(function(i){return i.type==='note';});
-  var disp=its.filter(function(i){return i.type==='display'&&i.done;});
   var ll=l==='sar'?'Sarasota':'Pinellas Park';
-  var body='VSI SURFACES — SAMPLE TRACKER\n'+c.name+' ('+ll+')\n=========================================\n\n';
-  if(disp.length)body+='🏗️ DISPLAY: '+disp.map(function(i){return i.text;}).join(', ')+'\n\n';
-  if(notes.length){body+='📝 NOTES:\n';notes.forEach(function(i){body+='  • '+i.text+'\n';});body+='\n';}
-  if(pl.length){body+='✅ PLACED ('+pl.length+'):\n';pl.forEach(function(i){body+='  ✓ '+i.text+(i.note?' ['+i.note+']':'')+'\n';});body+='\n';}
-  if(ord.length){body+='📦 ORDERED:\n';ord.forEach(function(i){body+='  ○ '+i.text+'\n';});body+='\n';}
-  if(nr.length){body+='🔄 NEEDS REPLACEMENT:\n';nr.forEach(function(i){body+='  ○ '+i.text+'\n';});body+='\n';}
-  if(np.length){body+='⬜ NOT PLACED:\n';np.forEach(function(i){body+='  ○ '+i.text+'\n';});}
-  body+='\n— VSI Surfaces · '+new Date().toLocaleDateString()+(c.updatedBy?' · '+c.updatedBy:'');
-  window.location.href='mailto:?subject='+encodeURIComponent('Sample Report — '+c.name+' ('+ll+')')+'&body='+encodeURIComponent(body);
+  var colors=its.filter(function(i){return i.type==='color';}),visits=its.filter(function(i){return i.type==='visit';}).slice().sort(function(a,b){return visitDateValue(b).localeCompare(visitDateValue(a));}),tasks=its.filter(function(i){return i.type==='task';}).slice().sort(function(a,b){return(a.dueDate||'9999-99-99').localeCompare(b.dueDate||'9999-99-99');}),displays=its.filter(function(i){return i.type==='display';}),notes=its.filter(function(i){return i.type==='note';});
+  var body='VSI SURFACES — COMPLETE CUSTOMER EXPORT\n'+c.name+' ('+ll+')\n=========================================\n\n';
+  body+='CUSTOMER DETAILS\nName: '+c.name+'\nLocation: '+ll+'\nTier: '+String(c.tier||'b').toUpperCase()+'\nLast updated: '+(c.updated?new Date(c.updated).toLocaleString():'Not recorded')+(c.updatedBy?' by '+c.updatedBy:'')+'\nStarred: '+(c.starred?'Yes':'No')+'\n';
+  Object.keys(c).forEach(function(k){if(['id','name','tier','updated','updatedBy','starred','emoji'].indexOf(k)!==-1)return;var v=c[k];if(v===null||v===undefined||typeof v==='object')return;body+=k+': '+String(v)+'\n';});
+  if(displays.length){body+='\nDISPLAY / TOWER TYPES\n';displays.forEach(function(i){body+='  '+(i.done?'✓':'○')+' '+(i.text||i.label||i.id)+'\n';});}
+  if(colors.length){body+='\nSAMPLE COLORS ('+colors.length+')\n';colors.forEach(function(i){var state=i.done?'Placed':i.status==='ordered'?'Ordered':i.status==='needs-rep'?'Needs replacement':i.status||'Not placed';body+='  • '+(i.text||'Unnamed')+' — '+state+(i.note?' — '+i.note:'')+'\n';});}
+  if(notes.length){body+='\nCUSTOMER NOTES ('+notes.length+')\n';notes.forEach(function(i){body+='  • '+(i.text||'')+'\n';});}
+  body+='\nVISIT HISTORY ('+visits.length+')\n';
+  if(visits.length)visits.forEach(function(v){body+='  • '+prettyVisitDate(visitDateValue(v),{month:'short',day:'numeric',year:'numeric'})+' — '+(v.visitStatus==='planned'?'Planned':'Completed')+' — '+(v.visitBy||'Unknown')+(v.text?'\n    Notes: '+v.text:'')+'\n';});else body+='  No visits recorded.\n';
+  body+='\nFOLLOW-UP TASKS ('+tasks.length+')\n';
+  if(tasks.length)tasks.forEach(function(t){body+='  • '+(t.taskStatus==='done'?'Done':'Open')+' — '+(t.text||'Untitled task')+' — '+(t.dueDate?'Due '+prettyVisitDate(t.dueDate,{month:'short',day:'numeric',year:'numeric'}):'No due date')+' — Assigned to '+(t.assignedTo||'Unassigned')+(t.completedAt?' — Completed '+new Date(t.completedAt).toLocaleDateString():'')+(t.note?'\n    Notes: '+t.note:'')+'\n';});else body+='  No follow-up tasks recorded.\n';
+  var known={color:1,visit:1,task:1,display:1,note:1},other=its.filter(function(i){return i&&!known[i.type];});
+  if(other.length){body+='\nOTHER CUSTOMER RECORDS ('+other.length+')\n';other.forEach(function(i){body+='  • '+(i.type||'record')+': '+(i.text||i.name||JSON.stringify(i))+'\n';});}
+  body+='\n— VSI Surfaces · Exported '+new Date().toLocaleString()+(S.user?' by '+S.user:'');
+  var subject='Complete Customer Export — '+c.name+' ('+ll+')',url='mailto:?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
+  if(url.length>1800){var blob=new Blob([body],{type:'text/plain;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='vsi-customer-'+String(c.name).toLowerCase().replace(/[^a-z0-9]+/g,'-')+'-'+new Date().toISOString().slice(0,10)+'.txt';a.click();setTimeout(function(){URL.revokeObjectURL(a.href);},1000);var brief='The complete customer history is in the downloaded VSI customer export text file. Please attach that file before sending.';window.location.href='mailto:?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(brief);showToast('Full customer export downloaded — attach it to the email');}
+  else window.location.href=url;
 }
 function copyList(){
   var l=S.loc,c=getCust(l,S.activeCustomer);if(!c)return;
