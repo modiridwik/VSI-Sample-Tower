@@ -157,7 +157,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .cust-nm{font-family:Georgia,serif;font-size:22px;font-weight:600;}
 .cust-nm-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;}
 .pill{padding:3px 9px;border-radius:50px;font-size:10px;font-weight:700;}
- .pill.gold{background:var(--gold);color:white;}
+.pill.gold{background:var(--gold);color:white;}
 .pill.teal{background:var(--teal-light);color:var(--teal);border:1px solid rgba(42,107,95,0.25);}
 .pill.red{background:var(--red-light);color:var(--red);border:1px solid rgba(192,57,43,0.3);}
 .pill.orange{background:var(--orange-light);color:var(--orange);border:1px solid rgba(230,126,34,0.3);}
@@ -1217,8 +1217,8 @@ function customerCategoryTabs(l){
   var customers=cLoc(l).customers,selected=S.cbCategory||'all';
   var counts={all:customers.length};
   customers.forEach(function(c){var id=['fabricator','builder','designer'].indexOf(c.category)!==-1?c.category:'fabricator';counts[id]=(counts[id]||0)+1;});
-  var tabs='<button class="category-tab'+(selected==='all'?' on':'')+'" onclick="setCustomerCategoryFilter(\\'all\\')">All ('+counts.all+')</button>';
-  CUSTOMER_CATEGORIES.forEach(function(cat){tabs+='<button class="category-tab'+(selected===cat.id?' on':'')+'" onclick="setCustomerCategoryFilter(\\''+cat.id+'\\')">'+cat.label+' ('+(counts[cat.id]||0)+')</button>';});
+  var tabs='<button class="category-tab'+(selected==='all'?' on':'')+'" onclick="setCustomerCategoryFilter(\'all\')">All ('+counts.all+')</button>';
+  CUSTOMER_CATEGORIES.forEach(function(cat){tabs+='<button class="category-tab'+(selected===cat.id?' on':'')+'" onclick="setCustomerCategoryFilter(\''+cat.id+'\')">'+cat.label+' ('+(counts[cat.id]||0)+')</button>';});
   return tabs;
 }
 function setCustomerCategoryFilter(id){S.cbCategory=id;renderBrowser();}
