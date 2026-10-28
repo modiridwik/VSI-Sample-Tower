@@ -1197,18 +1197,25 @@ function showColorMo(l,color){
 // ── CUSTOMER BROWSER ──────────────────────────────────────────────
 function renderBrowser(){
   S.showDetail=false;
+  var l=S.cbLoc;
+  var h='<div style="margin-bottom:12px"><h2 style="font-family:Georgia,serif;font-size:20px;margin-bottom:10px">Customers</h2>'+
+    '<div class="loc-tog"><button class="ltb'+(l==='sar'?' on':'')+'" onclick="cbLoc(\'sar\')">📍 Sarasota ('+S.sar.customers.length+')</button><button class="ltb'+(l==='pin'?' on':'')+'" onclick="cbLoc(\'pin\')">📍 Pinellas Park ('+S.pin.customers.length+')</button></div>'+
+    '<input class="cb-srch" type="search" placeholder="🔍 Search customers…" value="'+html(S.cbSearch||'')+'" oninput="S.cbSearch=this.value;renderCustomerResults()" autocomplete="off"></div><div id="customer-results"></div>';
+  document.getElementById('cust-zone').innerHTML=h;
+  renderCustomerResults();
+}
+function renderCustomerResults(){
+  var el=document.getElementById('customer-results');if(!el)return;
   var l=S.cbLoc,q=(S.cbSearch||'').toLowerCase(),now=Date.now();
   var cs=cLoc(l).customers.filter(function(c){return!q||c.name.toLowerCase().indexOf(q)!==-1;})
     .slice().sort(function(a,b){if(a.starred&&!b.starred)return-1;if(!a.starred&&b.starred)return 1;var ta=a.tier||'b',tb=b.tier||'b';if(ta!==tb)return ta<tb?-1:1;return a.name.toLowerCase()<b.name.toLowerCase()?-1:1;});
-  var h='<div style="margin-bottom:12px"><h2 style="font-family:Georgia,serif;font-size:20px;margin-bottom:10px">Customers</h2>'+
-    '<div class="loc-tog"><button class="ltb'+(l==='sar'?' on':'')+'" onclick="cbLoc(\'sar\')">📍 Sarasota ('+S.sar.customers.length+')</button><button class="ltb'+(l==='pin'?' on':'')+'" onclick="cbLoc(\'pin\')">📍 Pinellas Park ('+S.pin.customers.length+')</button></div>'+
-    '<input class="cb-srch" type="text" placeholder="🔍 Search customers…" value="'+html(S.cbSearch||'')+'" oninput="S.cbSearch=this.value;renderBrowser()"></div>';
-  if(!cs.length){h+='<div style="text-align:center;padding:36px;color:var(--charcoal-light)"><div style="font-size:38px;margin-bottom:8px">🏪</div><p style="font-weight:600;font-size:14px;margin-bottom:14px">No customers found.</p><button onclick="openMo(\'mo-nc\')" style="padding:10px 20px;background:var(--gold);color:white;border:none;border-radius:var(--rs);font-family:-apple-system,sans-serif;font-weight:700;font-size:13px;cursor:pointer">＋ Add Customer</button></div>';document.getElementById('cust-zone').innerHTML=h;return;}
+  var h='';
+  if(!cs.length){el.innerHTML='<div style="text-align:center;padding:36px;color:var(--charcoal-light)"><div style="font-size:38px;margin-bottom:8px">🏪</div><p style="font-weight:600;font-size:14px;margin-bottom:14px">No customers found.</p><button onclick="openMo(\'mo-nc\')" style="padding:10px 20px;background:var(--gold);color:white;border:none;border-radius:var(--rs);font-family:-apple-system,sans-serif;font-weight:700;font-size:13px;cursor:pointer">＋ Add Customer</button></div>';return;}
   var starred=cs.filter(function(c){return!!c.starred;}),regular=cs.filter(function(c){return!c.starred;});
   if(starred.length){h+='<div class="sec-lbl">⭐ Starred</div>';starred.forEach(function(c){h+=cbRow(l,c,now);});}
   h+='<div class="sec-lbl">All Customers ('+regular.length+')</div>';
   regular.forEach(function(c){h+=cbRow(l,c,now);});
-  document.getElementById('cust-zone').innerHTML=h;
+  el.innerHTML=h;
 }
 function cbLoc(l){S.cbLoc=l;renderBrowser();}
 function cbRow(l,c,now){
