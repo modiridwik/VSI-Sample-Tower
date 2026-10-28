@@ -780,16 +780,20 @@ function idbRestore(ts){
 
 // ── STORAGE ──────────────────────────────────────────────────────
 var SB_SAVE_PENDING=false;
-var SB_REV=null,SB_CONFLICT=false,SB_CHAIN=Promise.resolve(),SB_WRITES=0;
+var SB_REV=null,SB_CONFLICT=false,SB_CHAIN=Promise.resolve(),SB_WRITES=0,SB_RETRYING=false;
+try{SB_REV=localStorage.getItem(KEY+'_revision')||null;}catch(e){}
 function syncWarning(message){
   var el=document.getElementById('sync-warning');
   if(!el){el=document.createElement('div');el.id='sync-warning';el.setAttribute('role','alert');el.style.cssText='position:sticky;top:56px;z-index:201;background:#FDECEA;color:#822;padding:12px;font-size:13px;border-bottom:2px solid #C0392B';document.body.prepend(el);}
   el.textContent=message+' Your local data is preserved. Export a JSON backup before reloading or restoring data.';
 }
+function clearSyncWarning(){var el=document.getElementById('sync-warning');if(el)el.remove();}
+function setSBRevision(revision){SB_REV=revision||null;if(SB_REV){try{localStorage.setItem(KEY+'_revision',SB_REV);}catch(e){}}}
+function clearSyncedState(){if(SB_SAVE_PENDING||OFFLINE_Q||SB_CONFLICT)return;clearSyncWarning();var dot=document.getElementById('save-dot');if(dot)dot.className='';}
 
 var OFFLINE_Q=null;
 window.addEventListener('online',function(){
-  if(OFFLINE_Q)syncWarning('Unsynced local changes are waiting. Export a backup before syncing them.');
+  if(OFFLINE_Q){syncWarning('Retrying unsynced local changes…');retryOfflineSync();}
 });
 function stripPhotos(data){
   if(!data)return data;
@@ -869,8 +873,8 @@ function persist(){
     sbSave(p).then(function(ok){
       SB_SAVE_PENDING=SB_WRITES>0;
       var dot=document.getElementById('save-dot');
-      if(ok){if(localStorage.getItem(KEY+'_pending')===(p.saved_at||'pending')){localStorage.removeItem(KEY+'_pending');OFFLINE_Q=null;}if(dot&&!SB_SAVE_PENDING)dot.className='';}
-      else{OFFLINE_Q=p;if(dot){dot.style.background='var(--orange)';setTimeout(function(){dot.style.background='';},3000);}showToast('Cloud sync paused — changes saved locally');}
+      if(ok){if(localStorage.getItem(KEY+'_pending')===(p.saved_at||'pending')){localStorage.removeItem(KEY+'_pending');OFFLINE_Q=null;}if(dot&&!SB_SAVE_PENDING)dot.className='';clearSyncedState();}
+      else{OFFLINE_Q=p;if(dot){dot.style.background='var(--orange)';setTimeout(function(){dot.style.background='';},3000);}showToast('Cloud sync paused — changes saved locally');if(navigator.onLine)setTimeout(function(){retryOfflineSync();},4000);}
     });
   }catch(e){alert('Save failed — storage may be full. Export a backup!');}
 }
@@ -900,11 +904,11 @@ function sbSave(payload){
     return fetch(SB_URL+'/app_data?id=eq.vsi_v1&updated_at=eq.'+encodeURIComponent(SB_REV)+'&select=id,updated_at',{
       method:'PATCH',headers:Object.assign({},sbHeaders(),{'Prefer':'return=representation'}),
       body:JSON.stringify({data:savedPayload,updated_at:frozen.saved_at})
-    }).then(function(r){if(!r.ok)throw new Error('Cloud save failed');return r.json();})
+    }).then(function(r){if(!r.ok)return r.text().then(function(body){throw new Error('HTTP '+r.status+(body?' — '+body.slice(0,140):''));});return r.json();})
     .then(function(rows){
       if(!rows||rows.length!==1){SB_CONFLICT=true;syncWarning('Another device changed the cloud data. Sync is paused to prevent overwriting it.');return false;}
-      SB_REV=rows[0].updated_at;sbBackup(savedPayload);return true;
-    }).catch(function(){syncWarning('Cloud save failed. Changes are saved on this device.');return false;});
+      setSBRevision(rows[0].updated_at);sbBackup(savedPayload);return true;
+    }).catch(function(err){syncWarning('Cloud save failed'+(err&&err.message?': '+String(err.message).slice(0,160):'')+'. Changes are saved on this device.');return false;});
   });
   SB_CHAIN=task.catch(function(){return false;});
   return task.then(function(ok){SB_WRITES--;SB_SAVE_PENDING=SB_WRITES>0;return ok;});
@@ -928,6 +932,21 @@ function sbLoad(){
   .then(function(rows){return(rows&&rows.length)?rows[0]:null;})
   .catch(function(){return null;});
 }
+function retryOfflineSync(loadedRow){
+  if(!OFFLINE_Q||SB_RETRYING||SB_CONFLICT||SB_SAVE_PENDING)return Promise.resolve(false);
+  SB_RETRYING=true;
+  return (loadedRow?Promise.resolve(loadedRow):sbLoad()).then(function(row){
+    if(!row||!row.data){syncWarning('Could not reach cloud data to retry.');return false;}
+    if(row.data.saved_at===S.saved_at){setSBRevision(row.updated_at);localStorage.removeItem(KEY+'_pending');OFFLINE_Q=null;clearSyncedState();showToast('☁️ Local changes are synced');return true;}
+    if(!SB_REV||row.updated_at!==SB_REV){SB_CONFLICT=true;syncWarning('Cloud data changed while this device was offline. Sync is paused so neither copy is overwritten.');return false;}
+    var payload=mkPayload();
+    return sbSave(payload).then(function(ok){
+      if(ok){if(localStorage.getItem(KEY+'_pending')===(payload.saved_at||'pending'))localStorage.removeItem(KEY+'_pending');OFFLINE_Q=null;clearSyncedState();showToast('☁️ Local changes are synced');}
+      return ok;
+    });
+  }).catch(function(err){syncWarning('Could not retry cloud save'+(err&&err.message?': '+String(err.message).slice(0,140):'')+'.');return false;})
+  .then(function(ok){SB_RETRYING=false;return ok;},function(err){SB_RETRYING=false;throw err;});
+}
 function applyRemote(row,silent){
   if(!row||!row.data)return;
   if(SB_SAVE_PENDING||OFFLINE_Q||SB_CONFLICT)return;
@@ -939,7 +958,7 @@ function applyRemote(row,silent){
   var catalogChanged=normalizeCollection(d);
   var remoteTs=new Date(row.updated_at||0).getTime();
   var localTs=new Date(S.saved_at||0).getTime();
-  if(d.saved_at===S.saved_at){SB_REV=row.updated_at;if(catalogChanged)persist();return;}
+  if(d.saved_at===S.saved_at){setSBRevision(row.updated_at);if(catalogChanged)persist();else clearSyncedState();return;}
   if(remoteTs<localTs){syncWarning('This device has newer local changes. Cloud sync is paused to protect both copies.');return;}
   var remCust=(d.sar&&d.sar.customers?d.sar.customers.length:0)+(d.pin&&d.pin.customers?d.pin.customers.length:0);
   var locCust=S.sar.customers.length+S.pin.customers.length;
@@ -962,11 +981,12 @@ function applyRemote(row,silent){
   s.pin.customers.forEach(function(c){if(!s.pin.items[c.id])s.pin.items[c.id]=[];});
   s.activeView=S.activeView;s.activeCustomer=S.activeCustomer;s.showDetail=S.showDetail;s.sbOpen=window.innerWidth<=600?false:S.sbOpen;s.loc=S.loc;s.sbLoc=S.sbLoc;s.dashLoc=S.dashLoc;s.whLoc=S.whLoc;s.cbLoc=S.cbLoc;s.cbSearch=S.cbSearch;
   S=s;
-  SB_REV=row.updated_at;
+  setSBRevision(row.updated_at);
   localStorage.setItem(KEY,JSON.stringify(d));
   document.getElementById('thresh').value=S.threshold;
   updateUserUI();renderAll();
   if(catalogChanged){persist();return;}
+  clearSyncWarning();
   if(!silent)showToast('☁️ Synced from cloud');
 }
 function checkRemoteRevision(){
@@ -1667,7 +1687,8 @@ if(daysSinceBak>=7 && realItemCount>0){
   setTimeout(function(){exportJSON();showToast('💾 Auto-backup downloaded ('+daysSinceBak+' days since last)');},3000);
 }
 sbLoad().then(function(row){
-  if(row){applyRemote(row,false);}
+  if(row&&OFFLINE_Q){retryOfflineSync(row);}
+  else if(row){applyRemote(row,false);}
   else{syncWarning('Cloud data could not be loaded. Automatic cloud uploads are paused to prevent a reset.');}
   startPolling();
 });
