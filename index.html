@@ -134,6 +134,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .loc-tog{display:flex;border-radius:var(--rs);overflow:hidden;border:1px solid var(--stone-dark);margin-bottom:8px;}
 .ltb{flex:1;padding:8px;border:none;background:var(--stone);font-family:-apple-system,sans-serif;font-size:12px;font-weight:700;color:var(--charcoal-light);cursor:pointer;}
 .ltb.on{background:var(--gold);color:white;}
+.customer-category-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0;}
+.category-tab{padding:7px 10px;border:1px solid var(--stone-dark);border-radius:50px;background:var(--white);color:var(--charcoal-light);font-family:-apple-system,sans-serif;font-size:11px;font-weight:700;cursor:pointer;}
+.category-tab.on{background:var(--charcoal);border-color:var(--charcoal);color:white;}
 .cb-srch{width:100%;padding:9px 12px;border:1px solid var(--stone-dark);border-radius:var(--rs);font-family:-apple-system,sans-serif;font-size:14px;outline:none;color:var(--charcoal);background:var(--white);margin-bottom:8px;}
 .cb-srch:focus{border-color:var(--gold);}
 .cb-item{background:var(--white);border-radius:var(--rs);padding:11px 13px;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow-sm);border:1px solid var(--stone-mid);cursor:pointer;transition:all 0.18s;margin-bottom:5px;}
@@ -154,7 +157,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .cust-nm{font-family:Georgia,serif;font-size:22px;font-weight:600;}
 .cust-nm-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;}
 .pill{padding:3px 9px;border-radius:50px;font-size:10px;font-weight:700;}
-.pill.gold{background:var(--gold);color:white;}
+ .pill.gold{background:var(--gold);color:white;}
+.pill.teal{background:var(--teal-light);color:var(--teal);border:1px solid rgba(42,107,95,0.25);}
 .pill.red{background:var(--red-light);color:var(--red);border:1px solid rgba(192,57,43,0.3);}
 .pill.orange{background:var(--orange-light);color:var(--orange);border:1px solid rgba(230,126,34,0.3);}
 .pill.purple{background:var(--purple-light);color:var(--purple);border:1px solid rgba(125,60,152,0.3);}
@@ -466,6 +470,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <input type="text" id="nc-nm" placeholder="Customer name…" maxlength="50">
     <select id="nc-loc"><option value="sar">📍 Sarasota</option><option value="pin">📍 Pinellas Park</option></select>
     <select id="nc-tier"><option value="a">🔴 A — Priority</option><option value="b" selected>🟠 B — Regular</option><option value="c">🟣 C — Occasional</option></select>
+    <select id="nc-category" aria-label="Customer category"><option value="fabricator" selected>Fabricator</option><option value="builder">Builder</option><option value="designer">Designer</option></select>
     <div class="modal-btns"><button class="m-cancel" onclick="closeMo('mo-nc')">Cancel</button><button class="m-ok" onclick="createCust()">Create</button></div>
   </div>
 </div>
@@ -542,6 +547,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <input type="text" id="ec-nm" placeholder="Name…" maxlength="50">
     <select id="ec-tier"><option value="a">🔴 A — Priority</option><option value="b">🟠 B — Regular</option><option value="c">🟣 C — Occasional</option></select>
     <select id="ec-loc"><option value="sar">📍 Sarasota</option><option value="pin">📍 Pinellas Park</option></select>
+    <select id="ec-category" aria-label="Customer category"><option value="fabricator">Fabricator</option><option value="builder">Builder</option><option value="designer">Designer</option></select>
     <div class="modal-btns"><button class="m-cancel" onclick="closeMo('mo-ec')">Cancel</button><button class="m-ok" onclick="saveEC()">Save</button></div>
   </div>
 </div>
@@ -686,6 +692,8 @@ var CATALOG_VERSION=2;
 var ALL_COLORS=['BLUE NIMBUS','CASPIAN','CIELO BLUE','DANBY','DESERT MIST','GOLDEN DIVINITY','GOLDEN RIDGE','HAZE','LUNA','MAGNUS','MONARCH','NERO MARQUINA','RIVERA GOLD','SIENNA GOLD','VERONA GOLD','WHITE BIRCH','WINTERCREEK','LINCOLN','TERRA BIANCO','MAGNIFICO SJ','CRISTALLO SUPREME','MONT BLANC','TAJ DARK SJ','TAJ LIGHT SJ','WHITE TAJ MAHAL','VAGLI','CREMO','CRISTALLO ORO','CRISTALLO ORO 2CM','NAPOLITANO','PIENZA','ARCTICO','ARGENTEO VIVO','LUCE DORATA','LUNA PIENA','MAREA OSCURA',"NEBBIA D'ALBA",'ORO LUCENTE','RAGGIO DI SOLE','SABBIA','TERRA OMBROSA','VULCANICA'];
 var COLOR_ALIASES={'ARGENTO VIVO':'ARGENTEO VIVO','ARTICO':'ARCTICO','CALACATTA LINCOLN':'LINCOLN','DIVINITY':'GOLDEN DIVINITY','HAZE SJ':'HAZE','NAPALITANO GOLD':'NAPOLITANO','RIVIERA GOLD':'RIVERA GOLD','SIENA GOLD':'SIENNA GOLD','TAJ DARK':'TAJ DARK SJ','TAJ LIGHT':'TAJ LIGHT SJ','TERRA UMBROSSA':'TERRA OMBROSA','WHITE TAJ':'WHITE TAJ MAHAL'};
 var COLOR_SET={};ALL_COLORS.forEach(function(c){COLOR_SET[c]=true;});
+var CUSTOMER_CATEGORIES=[{id:'fabricator',label:'Fabricators'},{id:'builder',label:'Builders'},{id:'designer',label:'Designers'}];
+function categoryLabel(id){for(var i=0;i<CUSTOMER_CATEGORIES.length;i++){if(CUSTOMER_CATEGORIES[i].id===id)return CUSTOMER_CATEGORIES[i].label.slice(0,-1);}return 'Fabricator';}
 var DISP=[{id:'dt_r',label:'R-Tower'},{id:'dt_q',label:'Q-Tower'},{id:'dt_l',label:'L-Tower'},{id:'dt_v',label:'V-Tower'},{id:'dt_w',label:'Wall'}];
 var DC=[{id:'l_301',name:'301',emoji:'📌',tier:'b'},{id:'l_abf',name:'ABSOLUTE FLOOR',emoji:'🪟',tier:'b'},{id:'l_adv',name:'ADVANCED',emoji:'⚡',tier:'b'},{id:'l_ag',name:'ALL GRANITE',emoji:'💎',tier:'a'},{id:'l_aio',name:'All in one-',emoji:'🔄',tier:'c'},{id:'l_all',name:'ALLURE',emoji:'✨',tier:'b'},{id:'l_alp',name:'ALPHA-',emoji:'🔤',tier:'c'},{id:'l_ang',name:'ANGELINA',emoji:'👼',tier:'b'},{id:'l_arch',name:'ARCHITECTURAL MARBLE',emoji:'🏗️',tier:'a'},{id:'l_cas',name:'CASTILLO',emoji:'🏰',tier:'b'},{id:'l_cc',name:'CARLOS CASTRO',emoji:'👤',tier:'b'},{id:'l_cut',name:'Cutting EDGE',emoji:'✂️',tier:'c'},{id:'l_dis',name:'DISTINCTIVE',emoji:'🌟',tier:'b'},{id:'l_dnw',name:'D&W',emoji:'🔧',tier:'b'},{id:'l_eag',name:'EAGLE STONE',emoji:'🦅',tier:'a'},{id:'l_eg',name:'EXPORT GRANITE',emoji:'🪨',tier:'a'},{id:'l_em',name:'EUROPEAN MARBLE',emoji:'🏛️',tier:'a'},{id:'l_fc',name:'FINE COUNTERTOPS',emoji:'🔲',tier:'b'},{id:'l_fco',name:'Fine Counters',emoji:'🪞',tier:'c'},{id:'l_ft1',name:'FINAL TOUCH',emoji:'🎯',tier:'b'},{id:'l_ft2',name:'FINAL TOUCH 2',emoji:'🎯',tier:'b'},{id:'l_gal',name:'GALLERIA',emoji:'🖼️',tier:'b'},{id:'l_gue',name:'GUERRING',emoji:'🏗️',tier:'c'},{id:'l_ias',name:'IAS',emoji:'🏢',tier:'b'},{id:'l_ias2',name:'IAS 2',emoji:'🏢',tier:'b'},{id:'l_ink',name:'INKA STONE',emoji:'🪨',tier:'c'},{id:'l_inn',name:'INNOVATIVE',emoji:'💡',tier:'b'},{id:'l_iss',name:'INFINITE STONE SOLUTION',emoji:'♾️',tier:'a'},{id:'l_kev',name:'KEVINSTONE',emoji:'🪵',tier:'b'},{id:'l_nss',name:'NSS',emoji:'🏠',tier:'a'},{id:'l_ome',name:'OMEGA',emoji:'🔱',tier:'b'},{id:'l_phx',name:'PHOENIX',emoji:'🔥',tier:'a'},{id:'l_pla',name:'PLANET STONE',emoji:'🌍',tier:'b'},{id:'l_rig',name:'RIGO',emoji:'📐',tier:'b'},{id:'l_sag',name:'SAG',emoji:'📋',tier:'b'},{id:'l_scd',name:'Suncoast Granite Design',emoji:'🌴',tier:'b'},{id:'l_sea',name:'SEASHORE',emoji:'🌊',tier:'b'},{id:'l_sgm',name:'Sarasota Granite Man',emoji:'👷',tier:'b'},{id:'l_sgq',name:'SARASOTA GRANITE & QUARTZ',emoji:'💠',tier:'a'},{id:'l_sig',name:'SIGNATURE',emoji:'✍️',tier:'a'},{id:'l_skc',name:'SARASOTA KITCHEN COMPANY',emoji:'🍳',tier:'b'},{id:'l_ssrq',name:'SUNMAC SRQ',emoji:'☀️',tier:'b'},{id:'l_tm',name:'T&M',emoji:'🔨',tier:'b'},{id:'l_tsi',name:'TILE AND STONE OF ITALY',emoji:'🇮🇹',tier:'b'},{id:'l_uk',name:'UNIQUE KITCHEN',emoji:'🍽️',tier:'b'},{id:'l_val',name:'VALENCIA',emoji:'🌺',tier:'b'},{id:'l_vf',name:'VISION/FALFAS',emoji:'👁️',tier:'b'},{id:'l_vol',name:'VOLCANO',emoji:'🌋',tier:'b'},{id:'l_wes',name:'WESTONE',emoji:'🧱',tier:'b'},{id:'l_whi',name:'WHITLOW',emoji:'⬜',tier:'c'}];
 DC.sort(function(a,b){return a.name.toLowerCase()<b.name.toLowerCase()?-1:1;});
@@ -698,7 +706,7 @@ function normalizeCollection(data){
   ['sar','pin'].forEach(function(l){
     var loc=data[l];if(!loc||typeof loc!=='object')return;
     if(!loc.items||typeof loc.items!=='object'||Array.isArray(loc.items)){loc.items={};changed=true;}
-    var ids={};(loc.customers||[]).forEach(function(c){if(c&&c.id)ids[c.id]=true;});
+    var ids={};(loc.customers||[]).forEach(function(c){if(c&&c.id){ids[c.id]=true;if(['fabricator','builder','designer'].indexOf(c.category)===-1){c.category='fabricator';changed=true;}}});
     Object.keys(loc.items).forEach(function(id){ids[id]=true;});
     Object.keys(ids).forEach(function(id){
       var arr=Array.isArray(loc.items[id])?loc.items[id]:[];
@@ -733,7 +741,7 @@ var CAL_MONTH=new Date(new Date().getFullYear(),new Date().getMonth(),1);
 var CAL_SELECTED=localDateValue(new Date());
 
 function defState(){
-  var o={catalog_version:CATALOG_VERSION,user:null,threshold:2,sbLoc:'sar',dashLoc:'sar',whLoc:'sar',cbLoc:'sar',loc:'sar',activeCustomer:null,activeView:'dash',showDetail:false,cbSearch:'',sbOpen:window.innerWidth>600,
+  var o={catalog_version:CATALOG_VERSION,user:null,threshold:2,sbLoc:'sar',dashLoc:'sar',whLoc:'sar',cbLoc:'sar',cbCategory:'all',loc:'sar',activeCustomer:null,activeView:'dash',showDetail:false,cbSearch:'',sbOpen:window.innerWidth>600,
     sar:{customers:JSON.parse(JSON.stringify(DC)),items:{},warehouse:mkWH()},
     pin:{customers:[],items:{},warehouse:mkWH()}};
   o.sar.customers.forEach(function(c){o.sar.items[c.id]=mkItems(c.id);});
@@ -979,7 +987,7 @@ function applyRemote(row,silent){
   if(d.pin){if(d.pin.customers)s.pin.customers=d.pin.customers;if(d.pin.items)s.pin.items=d.pin.items;if(d.pin.warehouse)s.pin.warehouse=d.pin.warehouse;}
   s.sar.customers.forEach(function(c){if(!s.sar.items[c.id])s.sar.items[c.id]=mkItems(c.id);});
   s.pin.customers.forEach(function(c){if(!s.pin.items[c.id])s.pin.items[c.id]=[];});
-  s.activeView=S.activeView;s.activeCustomer=S.activeCustomer;s.showDetail=S.showDetail;s.sbOpen=window.innerWidth<=600?false:S.sbOpen;s.loc=S.loc;s.sbLoc=S.sbLoc;s.dashLoc=S.dashLoc;s.whLoc=S.whLoc;s.cbLoc=S.cbLoc;s.cbSearch=S.cbSearch;
+  s.activeView=S.activeView;s.activeCustomer=S.activeCustomer;s.showDetail=S.showDetail;s.sbOpen=window.innerWidth<=600?false:S.sbOpen;s.loc=S.loc;s.sbLoc=S.sbLoc;s.dashLoc=S.dashLoc;s.whLoc=S.whLoc;s.cbLoc=S.cbLoc;s.cbSearch=S.cbSearch;s.cbCategory=S.cbCategory||'all';
   S=s;
   setSBRevision(row.updated_at);
   localStorage.setItem(KEY,JSON.stringify(d));
@@ -1200,20 +1208,30 @@ function renderBrowser(){
   var l=S.cbLoc;
   var h='<div style="margin-bottom:12px"><h2 style="font-family:Georgia,serif;font-size:20px;margin-bottom:10px">Customers</h2>'+
     '<div class="loc-tog"><button class="ltb'+(l==='sar'?' on':'')+'" onclick="cbLoc(\'sar\')">📍 Sarasota ('+S.sar.customers.length+')</button><button class="ltb'+(l==='pin'?' on':'')+'" onclick="cbLoc(\'pin\')">📍 Pinellas Park ('+S.pin.customers.length+')</button></div>'+
+    '<div class="customer-category-tabs">'+customerCategoryTabs(l)+'</div>'+
     '<input class="cb-srch" type="search" placeholder="🔍 Search customers…" value="'+html(S.cbSearch||'')+'" oninput="S.cbSearch=this.value;renderCustomerResults()" autocomplete="off"></div><div id="customer-results"></div>';
   document.getElementById('cust-zone').innerHTML=h;
   renderCustomerResults();
 }
+function customerCategoryTabs(l){
+  var customers=cLoc(l).customers,selected=S.cbCategory||'all';
+  var counts={all:customers.length};
+  customers.forEach(function(c){var id=['fabricator','builder','designer'].indexOf(c.category)!==-1?c.category:'fabricator';counts[id]=(counts[id]||0)+1;});
+  var tabs='<button class="category-tab'+(selected==='all'?' on':'')+'" onclick="setCustomerCategoryFilter(\\'all\\')">All ('+counts.all+')</button>';
+  CUSTOMER_CATEGORIES.forEach(function(cat){tabs+='<button class="category-tab'+(selected===cat.id?' on':'')+'" onclick="setCustomerCategoryFilter(\\''+cat.id+'\\')">'+cat.label+' ('+(counts[cat.id]||0)+')</button>';});
+  return tabs;
+}
+function setCustomerCategoryFilter(id){S.cbCategory=id;renderBrowser();}
 function renderCustomerResults(){
   var el=document.getElementById('customer-results');if(!el)return;
-  var l=S.cbLoc,q=(S.cbSearch||'').toLowerCase(),now=Date.now();
-  var cs=cLoc(l).customers.filter(function(c){return!q||c.name.toLowerCase().indexOf(q)!==-1;})
+  var l=S.cbLoc,q=(S.cbSearch||'').toLowerCase(),now=Date.now(),category=S.cbCategory||'all';
+  var cs=cLoc(l).customers.filter(function(c){var matchName=!q||c.name.toLowerCase().indexOf(q)!==-1;var cat=c.category||'fabricator';return matchName&&(category==='all'||cat===category);})
     .slice().sort(function(a,b){if(a.starred&&!b.starred)return-1;if(!a.starred&&b.starred)return 1;var ta=a.tier||'b',tb=b.tier||'b';if(ta!==tb)return ta<tb?-1:1;return a.name.toLowerCase()<b.name.toLowerCase()?-1:1;});
   var h='';
   if(!cs.length){el.innerHTML='<div style="text-align:center;padding:36px;color:var(--charcoal-light)"><div style="font-size:38px;margin-bottom:8px">🏪</div><p style="font-weight:600;font-size:14px;margin-bottom:14px">No customers found.</p><button onclick="openMo(\'mo-nc\')" style="padding:10px 20px;background:var(--gold);color:white;border:none;border-radius:var(--rs);font-family:-apple-system,sans-serif;font-weight:700;font-size:13px;cursor:pointer">＋ Add Customer</button></div>';return;}
   var starred=cs.filter(function(c){return!!c.starred;}),regular=cs.filter(function(c){return!c.starred;});
   if(starred.length){h+='<div class="sec-lbl">⭐ Starred</div>';starred.forEach(function(c){h+=cbRow(l,c,now);});}
-  h+='<div class="sec-lbl">All Customers ('+regular.length+')</div>';
+  h+='<div class="sec-lbl">'+(category==='all'?'All Customers':categoryLabel(category)+'s')+' ('+cs.length+')</div>';
   regular.forEach(function(c){h+=cbRow(l,c,now);});
   el.innerHTML=h;
 }
@@ -1253,6 +1271,7 @@ function renderDetail(){
   var h='<button class="back-btn" onclick="goBack()">‹ All Customers</button>'+
     '<div class="cust-nm-row"><div class="cust-nm">'+html(c.emoji)+' '+html(c.name)+'</div>'+
     '<span class="pill gold">'+(l==='sar'?'Sarasota':'Pinellas Park')+'</span>'+
+    '<span class="pill teal">'+categoryLabel(c.category||'fabricator')+'</span>'+
     '<span class="pill '+tc+'">'+tl+'</span>'+(c.starred?'<span class="pill gold">★</span>':'')+
     '</div><div class="cust-meta">'+
     '<span class="cust-upd">🕐 '+upd+'</span>'+(c.updatedBy?'<span class="cust-by">by '+html(c.updatedBy)+'</span>':'')+
@@ -1502,10 +1521,10 @@ function delCust(l,cid,name){
   if(S.activeCustomer===cid){S.activeCustomer=S[l].customers.length?S[l].customers[0].id:null;S.showDetail=false;}
   persist();renderAll();showToast('Customer deleted 🗑');
 }
-function openEC(l,cid){ET={l:l,cid:cid};var c=getCust(l,cid);if(!c)return;document.getElementById('ec-nm').value=c.name;document.getElementById('ec-tier').value=c.tier||'b';document.getElementById('ec-loc').value=l;openMo('mo-ec');}
+function openEC(l,cid){ET={l:l,cid:cid};var c=getCust(l,cid);if(!c)return;document.getElementById('ec-nm').value=c.name;document.getElementById('ec-tier').value=c.tier||'b';document.getElementById('ec-loc').value=l;document.getElementById('ec-category').value=c.category||'fabricator';openMo('mo-ec');}
 function saveEC(){
   if(!ET)return;var c=getCust(ET.l,ET.cid);if(!c)return;
-  c.name=document.getElementById('ec-nm').value.trim()||c.name;c.tier=document.getElementById('ec-tier').value;
+  c.name=document.getElementById('ec-nm').value.trim()||c.name;c.tier=document.getElementById('ec-tier').value;c.category=document.getElementById('ec-category').value;
   var newLoc=document.getElementById('ec-loc').value;
   if(newLoc!==ET.l){
     S[newLoc].customers.push(c);
@@ -1519,10 +1538,10 @@ function saveEC(){
 }
 function createCust(){
   var name=document.getElementById('nc-nm').value.trim();if(!name)return;
-  var l=document.getElementById('nc-loc').value;var tier=document.getElementById('nc-tier').value;
+  var l=document.getElementById('nc-loc').value;var tier=document.getElementById('nc-tier').value;var category=document.getElementById('nc-category').value;
   var emojis=['🏠','🪨','🔥','✍️','💎','🏛️','✨','🌋','🪵','🏰','🌊','💡','🎯','⚡','🌍','👤','📐','🏢','🍳','🪞'];
   var id='c_'+Date.now();
-  S[l].customers.push({id:id,name:name,emoji:emojis[Math.floor(Math.random()*emojis.length)],tier:tier});
+  S[l].customers.push({id:id,name:name,emoji:emojis[Math.floor(Math.random()*emojis.length)],tier:tier,category:category});
   S[l].items[id]=mkItems(id);closeMo('mo-nc');persist();openCust(l,id);showToast('"'+name+'" added! 🎉');
 }
 function openRestoreMo(){
