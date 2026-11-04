@@ -1139,7 +1139,12 @@ function renderAssignedTasks(){
   }).sort(function(a,b){var ad=a.due||'9999-12-31',bd=b.due||'9999-12-31';return ad.localeCompare(bd)||a.customer.name.localeCompare(b.customer.name)||String(a.task.text||'').localeCompare(String(b.task.text||''));});
   var open=rows.filter(function(r){return r.task.taskStatus!=='done';}),overdue=open.filter(function(r){return r.due&&r.due<localDateValue(new Date());});
   document.getElementById('dash-task-count').textContent=rows.length+' task'+(rows.length===1?'':'s')+' shown · '+open.length+' open'+(overdue.length?' · '+overdue.length+' overdue':'');
-  list.innerHTML=rows.length?rows.map(function(r){return taskMarkup(r,true);}).join(''):'<div class="visit-empty">No tasks match these filters.</div>';
+  if(!rows.length){list.innerHTML='<div class="visit-empty">No tasks match these filters.</div>';return;}
+  if(assignee!=='all'){list.innerHTML=rows.map(function(r){return taskMarkup(r,true);}).join('');return;}
+  var groups={},order=['Ridwik','Jason','Rob','Jr','Derrious','Sara','Buddy','Unassigned'];
+  rows.forEach(function(r){var name=r.task.assignedTo||'Unassigned';if(!groups[name])groups[name]=[];groups[name].push(r);});
+  Object.keys(groups).forEach(function(name){if(order.indexOf(name)===-1)order.push(name);});
+  list.innerHTML=order.filter(function(name){return groups[name]&&groups[name].length;}).map(function(name){return'<div class="day-section"><div class="day-section-title">'+html(name)+' <small>'+groups[name].length+'</small></div>'+groups[name].map(function(r){return taskMarkup(r,true);}).join('')+'</div>';}).join('');
 }
 function visitMarkup(r){
   var v=r.visit,planned=v.visitStatus==='planned',key=esc(r.loc+'|'+r.cid),id=esc(v.id);
