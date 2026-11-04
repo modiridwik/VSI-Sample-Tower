@@ -137,6 +137,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .customer-category-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0;}
 .category-tab{padding:7px 10px;border:1px solid var(--stone-dark);border-radius:50px;background:var(--white);color:var(--charcoal-light);font-family:-apple-system,sans-serif;font-size:11px;font-weight:700;cursor:pointer;}
 .category-tab.on{background:var(--charcoal);border-color:var(--charcoal);color:white;}
+.market-filter-label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:var(--charcoal-light);margin:4px 2px 4px;}
 .market-filter{width:100%;padding:9px 12px;border:1px solid var(--stone-dark);border-radius:var(--rs);font-family:-apple-system,sans-serif;font-size:13px;color:var(--charcoal);background:var(--white);margin:0 0 8px;}
 .cb-srch{width:100%;padding:9px 12px;border:1px solid var(--stone-dark);border-radius:var(--rs);font-family:-apple-system,sans-serif;font-size:14px;outline:none;color:var(--charcoal);background:var(--white);margin-bottom:8px;}
 .cb-srch:focus{border-color:var(--gold);}
@@ -472,7 +473,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <select id="nc-loc"><option value="sar">📍 Sarasota</option><option value="pin">📍 Pinellas Park</option></select>
     <select id="nc-tier"><option value="a">🔴 A — Priority</option><option value="b" selected>🟠 B — Regular</option><option value="c">🟣 C — Occasional</option></select>
     <select id="nc-category" aria-label="Customer category"><option value="fabricator" selected>Fabricator</option><option value="builder">Builder</option><option value="designer">Designer</option></select>
-    <select id="nc-market" aria-label="Geographic market"><option value="">Select city / market</option><option>Bradenton</option><option>Sarasota</option><option>Venice</option><option>Port Charlotte</option><option>Punta Gorda</option><option>Ft. Myers</option></select>
+    <select id="nc-market" aria-label="City / location"><option value="">Select city / location</option><option>Bradenton</option><option>Sarasota</option><option>Venice</option><option>Port Charlotte</option><option>Punta Gorda</option><option>Ft. Myers</option></select>
     <div class="modal-btns"><button class="m-cancel" onclick="closeMo('mo-nc')">Cancel</button><button class="m-ok" onclick="createCust()">Create</button></div>
   </div>
 </div>
@@ -550,7 +551,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <select id="ec-tier"><option value="a">🔴 A — Priority</option><option value="b">🟠 B — Regular</option><option value="c">🟣 C — Occasional</option></select>
     <select id="ec-loc"><option value="sar">📍 Sarasota</option><option value="pin">📍 Pinellas Park</option></select>
     <select id="ec-category" aria-label="Customer category"><option value="fabricator">Fabricator</option><option value="builder">Builder</option><option value="designer">Designer</option></select>
-    <select id="ec-market" aria-label="Geographic market"><option value="">Select city / market</option><option>Bradenton</option><option>Sarasota</option><option>Venice</option><option>Port Charlotte</option><option>Punta Gorda</option><option>Ft. Myers</option></select>
+    <select id="ec-market" aria-label="City / location"><option value="">Select city / location</option><option>Bradenton</option><option>Sarasota</option><option>Venice</option><option>Port Charlotte</option><option>Punta Gorda</option><option>Ft. Myers</option></select>
     <div class="modal-btns"><button class="m-cancel" onclick="closeMo('mo-ec')">Cancel</button><button class="m-ok" onclick="saveEC()">Save</button></div>
   </div>
 </div>
@@ -1214,7 +1215,7 @@ function renderBrowser(){
   var h='<div style="margin-bottom:12px"><h2 style="font-family:Georgia,serif;font-size:20px;margin-bottom:10px">Customers</h2>'+
     '<div class="loc-tog"><button class="ltb'+(l==='sar'?' on':'')+'" onclick="cbLoc(\'sar\')">📍 Sarasota ('+S.sar.customers.length+')</button><button class="ltb'+(l==='pin'?' on':'')+'" onclick="cbLoc(\'pin\')">📍 Pinellas Park ('+S.pin.customers.length+')</button></div>'+
     '<div class="customer-category-tabs">'+customerCategoryTabs(l)+'</div>'+
-    '<select class="market-filter" aria-label="Filter by city or market" onchange="S.cbMarket=this.value;renderCustomerResults()">'+customerMarketFilterOptions(l)+'</select>'+
+    '<label class="market-filter-label" for="customer-market-filter">Filter by City / Location</label><select id="customer-market-filter" class="market-filter" aria-label="Filter by City / Location" onchange="S.cbMarket=this.value;renderCustomerResults()">'+customerMarketFilterOptions(l)+'</select>'+
     '<input class="cb-srch" type="search" placeholder="🔍 Search customers…" value="'+html(S.cbSearch||'')+'" oninput="S.cbSearch=this.value;renderCustomerResults()" autocomplete="off"></div><div id="customer-results"></div>';
   document.getElementById('cust-zone').innerHTML=h;
   renderCustomerResults();
@@ -1232,8 +1233,8 @@ function customerMarketFilterOptions(l){
   var counts={all:customers.length,unassigned:0};
   CUSTOMER_MARKETS.forEach(function(market){counts[market]=0;});
   customers.forEach(function(c){if(CUSTOMER_MARKETS.indexOf(c.market)!==-1)counts[c.market]++;else counts.unassigned++;});
-  var options='<option value="all"'+(selected==='all'?' selected':'')+'>All markets ('+counts.all+')</option>';
-  options+='<option value="__unassigned__"'+(selected==='__unassigned__'?' selected':'')+'>Unassigned market ('+counts.unassigned+')</option>';
+  var options='<option value="all"'+(selected==='all'?' selected':'')+'>All cities / locations ('+counts.all+')</option>';
+  options+='<option value="__unassigned__"'+(selected==='__unassigned__'?' selected':'')+'>Unassigned city / location ('+counts.unassigned+')</option>';
   CUSTOMER_MARKETS.forEach(function(market){options+='<option value="'+market+'"'+(selected===market?' selected':'')+'>'+market+' ('+counts[market]+')</option>';});
   return options;
 }
@@ -1248,7 +1249,7 @@ function renderCustomerResults(){
   var starred=cs.filter(function(c){return!!c.starred;}),regular=cs.filter(function(c){return!c.starred;});
   if(starred.length){h+='<div class="sec-lbl">⭐ Starred</div>';starred.forEach(function(c){h+=cbRow(l,c,now);});}
   var groupLabel=category==='all'?'All Customers':categoryLabel(category)+'s';
-  if(market!=='all')groupLabel+=' · '+(market==='__unassigned__'?'Unassigned Market':market);
+  if(market!=='all')groupLabel+=' · '+(market==='__unassigned__'?'Unassigned City / Location':market);
   h+='<div class="sec-lbl">'+groupLabel+' ('+cs.length+')</div>';
   regular.forEach(function(c){h+=cbRow(l,c,now);});
   el.innerHTML=h;
