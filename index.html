@@ -284,6 +284,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .visit-form-label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--charcoal-light);margin:2px 0 5px;}
 .dash-summary{margin:0 0 10px;}
 .dash-summary .stat{cursor:default;}
+.dash-task-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 10px;}
+.dash-task-filters select{width:100%;padding:9px 10px;border:1px solid var(--stone-dark);border-radius:var(--rs);background:var(--white);font:600 12px -apple-system,sans-serif;color:var(--charcoal);}
+.dash-task-list{max-height:60vh;overflow:auto;overscroll-behavior:contain;}
+.dash-task-count{font-size:11px;font-weight:600;color:var(--charcoal-light);margin:-4px 0 9px;}
+@media(max-width:500px){.dash-task-filters{grid-template-columns:1fr;gap:6px;}}
 @media(max-width:600px){
   .visit-day{min-height:55px;padding:4px 3px;gap:2px;}
   .visit-day.selected{padding:3px 2px;}
@@ -630,6 +635,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     </div>
     <div class="dash-top"><div class="seg"><button class="seg-btn on" id="dl-sar" onclick="switchDL('sar')">📍 Sarasota</button><button class="seg-btn" id="dl-pin" onclick="switchDL('pin')">📍 Pinellas Park</button></div></div>
     <div class="stat-grid dash-summary" id="dash-summary"></div>
+    <div class="dc" id="dash-assigned-tasks">
+      <div class="dc-title"><span>📋 Assigned Tasks</span><button class="visit-add task-add" onclick="openTaskMo(S.dashLoc,null,CAL_SELECTED)">＋ Add Task</button></div>
+      <div class="dash-task-filters">
+        <select id="dash-task-assignee" aria-label="Filter tasks by assignee" onchange="renderAssignedTasks()"><option value="all">All team members</option><option value="Ridwik">Ridwik</option><option value="Jason">Jason</option><option value="Rob">Rob</option><option value="Jr">Jr</option><option value="Derrious">Derrious</option><option value="Sara">Sara</option><option value="Buddy">Buddy</option><option value="__unassigned__">Unassigned</option></select>
+        <select id="dash-task-location" aria-label="Filter tasks by location" onchange="renderAssignedTasks()"><option value="all">All locations</option><option value="sar">Sarasota</option><option value="pin">Pinellas Park</option></select>
+        <select id="dash-task-status" aria-label="Filter tasks by status" onchange="renderAssignedTasks()"><option value="open">Open tasks</option><option value="all">All tasks</option><option value="done">Completed tasks</option></select>
+      </div>
+      <div class="dash-task-count" id="dash-task-count"></div>
+      <div class="dash-task-list" id="dash-task-list"></div>
+    </div>
     <div class="visit-mode-tabs"><button id="visit-tab-day" onclick="switchDashboardMode('day')">Day Planner</button><button id="visit-tab-month" onclick="switchDashboardMode('month')">Month</button><button id="visit-tab-history" onclick="switchDashboardMode('history')">History</button></div>
     <div id="visit-day-view" class="dc">
       <div class="visit-nav">
@@ -1115,13 +1130,24 @@ function taskMarkup(r,showCustomer){
   var t=r.task,done=t.taskStatus==='done',key=esc(r.loc+'|'+r.cid),id=esc(t.id),customer=showCustomer?'<div class="visit-entry-meta">'+html(r.customer.emoji)+' '+html(r.customer.name)+' · '+(r.loc==='sar'?'Sarasota':'Pinellas Park')+'</div>':'';
   return'<div class="task-entry"><div class="visit-entry-name">'+html(t.text||'Untitled task')+'<span class="task-state'+(done?' done':'')+'">'+(done?'Done':'Open')+'</span></div>'+customer+'<div class="visit-entry-meta">Assigned to '+html(t.assignedTo||'Unassigned')+(t.sourceVisitId?' · From a visit':'')+'</div>'+(t.dueDate?'<div class="task-due">Due '+prettyVisitDate(t.dueDate,{month:'short',day:'numeric',year:'numeric'})+(done&&t.completedAt?' · Completed '+new Date(t.completedAt).toLocaleDateString():'')+'</div>':'<div class="visit-entry-meta">No due date</div>')+(t.note?'<div class="visit-entry-note">'+html(t.note)+'</div>':'')+'<div class="task-tools"><button class="task-check" onclick="toggleTask(\''+key+'\',\''+id+'\')">'+(done?'Reopen':'Mark done')+'</button><button onclick="editTask(\''+key+'\',\''+id+'\')">Edit</button><button onclick="deleteTask(\''+key+'\',\''+id+'\')">Delete</button></div></div>';
 }
+function renderAssignedTasks(){
+  var list=document.getElementById('dash-task-list');if(!list)return;
+  var assignee=document.getElementById('dash-task-assignee').value,location=document.getElementById('dash-task-location').value,status=document.getElementById('dash-task-status').value;
+  var rows=getTaskRows(location==='all'?null:location).filter(function(r){
+    var done=r.task.taskStatus==='done';
+    return(assignee==='all'||(assignee==='__unassigned__'?!r.task.assignedTo:r.task.assignedTo===assignee))&&(status==='all'||(status==='done'?done:!done));
+  }).sort(function(a,b){var ad=a.due||'9999-12-31',bd=b.due||'9999-12-31';return ad.localeCompare(bd)||a.customer.name.localeCompare(b.customer.name)||String(a.task.text||'').localeCompare(String(b.task.text||''));});
+  var open=rows.filter(function(r){return r.task.taskStatus!=='done';}),overdue=open.filter(function(r){return r.due&&r.due<localDateValue(new Date());});
+  document.getElementById('dash-task-count').textContent=rows.length+' task'+(rows.length===1?'':'s')+' shown · '+open.length+' open'+(overdue.length?' · '+overdue.length+' overdue':'');
+  list.innerHTML=rows.length?rows.map(function(r){return taskMarkup(r,true);}).join(''):'<div class="visit-empty">No tasks match these filters.</div>';
+}
 function visitMarkup(r){
   var v=r.visit,planned=v.visitStatus==='planned',key=esc(r.loc+'|'+r.cid),id=esc(v.id);
   return'<div class="visit-entry"><div class="visit-entry-main"><div class="visit-entry-name">'+html(r.customer.emoji)+' '+html(r.customer.name)+'<span class="visit-state'+(planned?' planned':'')+'">'+(planned?'Planned':'Completed')+'</span></div><div class="visit-entry-meta">'+(r.loc==='sar'?'Sarasota':'Pinellas Park')+' · '+html(v.visitBy||'Unknown')+'</div>'+(v.text?'<div class="visit-entry-note">'+html(v.text)+'</div>':'')+'</div><div class="visit-entry-actions">'+(planned?'<button class="visit-done" onclick="completeVisit(\''+key+'\',\''+id+'\')">Done</button>':'')+'<button onclick="editVisit(\''+key+'\',\''+id+'\')">Edit</button><button onclick="newTaskFromVisit(\''+key+'\',\''+id+'\')">＋ Task</button><button onclick="deleteVisit(\''+key+'\',\''+id+'\')" aria-label="Delete visit">✕</button></div></div>';
 }
 function setTaskSection(id,title,rows,showCustomer){var el=document.getElementById(id);if(!el)return;el.innerHTML=rows.length?'<div class="day-section"><div class="day-section-title">'+title+' <small>'+rows.length+'</small></div>'+rows.map(function(r){return taskMarkup(r,showCustomer);}).join('')+'</div>':'<div class="visit-empty">No tasks here.</div>';}
 function renderDash(){
-  var l=S.dashLoc||'sar';renderDashSummary(l);
+  var l=S.dashLoc||'sar';renderDashSummary(l);renderAssignedTasks();
   document.getElementById('visit-day-view').style.display=DASH_MODE==='day'?'block':'none';
   document.getElementById('visit-month-view').style.display=DASH_MODE==='month'?'block':'none';
   document.getElementById('visit-history-view').style.display=DASH_MODE==='history'?'block':'none';
