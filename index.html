@@ -801,15 +801,17 @@ function idbRestore(ts){
 }
 
 // ── STORAGE ──────────────────────────────────────────────────────
-var SB_SAVE_PENDING=false;
+var SB_SAVE_PENDING=false,SYNC_WARNING_ACTIVE=false;
 var SB_REV=null,SB_CONFLICT=false,SB_CHAIN=Promise.resolve(),SB_WRITES=0,SB_RETRYING=false;
 try{SB_REV=localStorage.getItem(KEY+'_revision')||null;}catch(e){}
 function syncWarning(message){
   var el=document.getElementById('sync-warning');
-  if(!el){el=document.createElement('div');el.id='sync-warning';el.setAttribute('role','alert');el.style.cssText='position:sticky;top:56px;z-index:201;background:#FDECEA;color:#822;padding:12px;font-size:13px;border-bottom:2px solid #C0392B';document.body.prepend(el);}
-  el.textContent=message+' Your local data is preserved. Export a JSON backup before reloading or restoring data.';
+  if(!el){el=document.createElement('div');el.id='sync-warning';el.setAttribute('role','status');el.style.cssText='position:sticky;top:56px;z-index:201;background:#FFF2D8;color:#704900;padding:7px 12px;font-size:12px;font-weight:600;border-bottom:1px solid #E0BD69';document.body.prepend(el);}
+  SYNC_WARNING_ACTIVE=true;
+  el.textContent='⚠️ Saved on this phone. Cloud backup needs attention—please ask Ridwik for help.';
 }
-function clearSyncWarning(){var el=document.getElementById('sync-warning');if(el)el.remove();}
+function localSaveWarning(){var el=document.getElementById('sync-warning');if(!el){el=document.createElement('div');el.id='sync-warning';el.setAttribute('role','status');el.style.cssText='position:sticky;top:56px;z-index:201;background:#FDECEA;color:#822;padding:7px 12px;font-size:12px;font-weight:600;border-bottom:1px solid #C0392B';document.body.prepend(el);}SYNC_WARNING_ACTIVE=true;el.textContent='⚠️ This change could not be saved. Keep the app open and ask Ridwik for help.';}
+function clearSyncWarning(){SYNC_WARNING_ACTIVE=false;var el=document.getElementById('sync-warning');if(el)el.remove();}
 function setSBRevision(revision){SB_REV=revision||null;if(SB_REV){try{localStorage.setItem(KEY+'_revision',SB_REV);}catch(e){}}}
 function clearSyncedState(){if(SB_SAVE_PENDING||OFFLINE_Q||SB_CONFLICT)return;clearSyncWarning();var dot=document.getElementById('save-dot');if(dot)dot.className='';}
 
@@ -896,9 +898,10 @@ function persist(){
       SB_SAVE_PENDING=SB_WRITES>0;
       var dot=document.getElementById('save-dot');
       if(ok){if(localStorage.getItem(KEY+'_pending')===(p.saved_at||'pending')){localStorage.removeItem(KEY+'_pending');OFFLINE_Q=null;}if(dot&&!SB_SAVE_PENDING)dot.className='';clearSyncedState();}
-      else{OFFLINE_Q=p;if(dot){dot.style.background='var(--orange)';setTimeout(function(){dot.style.background='';},3000);}showToast('Cloud sync paused — changes saved locally');if(navigator.onLine)setTimeout(function(){retryOfflineSync();},4000);}
+      else{OFFLINE_Q=p;if(dot){dot.style.background='var(--orange)';setTimeout(function(){dot.style.background='';},3000);}if(navigator.onLine)setTimeout(function(){retryOfflineSync();},4000);}
     });
-  }catch(e){var reason=e&&e.name==='QuotaExceededError'?'device storage is full':'device storage is unavailable';alert('This change was not saved — '+reason+'. Keep the app open and export a JSON backup before reloading.');}
+  }catch(e){localSaveWarning();showToast('Change not saved—ask Ridwik for help');return false;}
+  return true;
 }
 function load(){
   try{
@@ -959,11 +962,11 @@ function retryOfflineSync(loadedRow){
   SB_RETRYING=true;
   return (loadedRow?Promise.resolve(loadedRow):sbLoad()).then(function(row){
     if(!row||!row.data){syncWarning('Could not reach cloud data to retry.');return false;}
-    if(row.data.saved_at===S.saved_at){setSBRevision(row.updated_at);localStorage.removeItem(KEY+'_pending');OFFLINE_Q=null;clearSyncedState();showToast('☁️ Local changes are synced');return true;}
+  if(row.data.saved_at===S.saved_at){setSBRevision(row.updated_at);localStorage.removeItem(KEY+'_pending');OFFLINE_Q=null;clearSyncedState();showToast('All changes synced ✅');return true;}
     if(!SB_REV||row.updated_at!==SB_REV){SB_CONFLICT=true;syncWarning('Cloud data changed while this device was offline. Sync is paused so neither copy is overwritten.');return false;}
     var payload=mkPayload();
     return sbSave(payload).then(function(ok){
-      if(ok){if(localStorage.getItem(KEY+'_pending')===(payload.saved_at||'pending'))localStorage.removeItem(KEY+'_pending');OFFLINE_Q=null;clearSyncedState();showToast('☁️ Local changes are synced');}
+      if(ok){if(localStorage.getItem(KEY+'_pending')===(payload.saved_at||'pending'))localStorage.removeItem(KEY+'_pending');OFFLINE_Q=null;clearSyncedState();showToast('All changes synced ✅');}
       return ok;
     });
   }).catch(function(err){syncWarning('Could not retry cloud save'+(err&&err.message?': '+String(err.message).slice(0,140):'')+'.');return false;})
@@ -981,7 +984,10 @@ function applyRemote(row,silent){
   var remoteTs=new Date(row.updated_at||0).getTime();
   var localTs=new Date(S.saved_at||0).getTime();
   if(d.saved_at===S.saved_at){setSBRevision(row.updated_at);if(catalogChanged)persist();else clearSyncedState();return;}
-  if(remoteTs<localTs){syncWarning('This device has newer local changes. Cloud sync is paused to protect both copies.');return;}
+  if(remoteTs<localTs){
+    if(SB_REV&&row.updated_at===SB_REV){OFFLINE_Q=mkPayload();try{localStorage.setItem(KEY+'_pending',S.saved_at||'pending');}catch(e){}syncWarning('');retryOfflineSync(row);return;}
+    syncWarning('');return;
+  }
   var remCust=(d.sar&&d.sar.customers?d.sar.customers.length:0)+(d.pin&&d.pin.customers?d.pin.customers.length:0);
   var locCust=S.sar.customers.length+S.pin.customers.length;
   if(remCust===0&&locCust>0)return;
@@ -1529,7 +1535,7 @@ function saveVisit(){
     saveSnapAt(l,cid);v={id:'v_'+Date.now(),type:'visit',visitDate:date,visitStatus:status,visitBy:S.user||'Unknown',text:note,done:false};target.push(v);
   }
   if(status==='completed')stampAt(l,cid);
-  VISIT_EDIT=null;closeMo('mo-visit');persist();renderAll();showToast(status==='planned'?'Visit scheduled 🗓️':'Visit saved ✅');
+  VISIT_EDIT=null;closeMo('mo-visit');persist();renderAll();showToast(status==='planned'?'Visit scheduled ✅':'Visit saved ✅');
 }
 function completeVisit(customerKey,visitId){var p=customerKey.split('|'),l=p[0],cid=p.slice(1).join('|'),v=findVisit(l,cid,visitId);if(!v)return;saveSnapAt(l,cid);v.visitStatus='completed';v.visitBy=S.user||v.visitBy||'Unknown';stampAt(l,cid);persist();renderAll();showToast('Visit marked completed ✅');}
 function deleteVisit(customerKey,visitId){if(!confirm('Delete this visit entry?'))return;var p=customerKey.split('|'),l=p[0],cid=p.slice(1).join('|');saveSnapAt(l,cid);S[l].items[cid]=(S[l].items[cid]||[]).filter(function(v){return!(v.id===visitId&&v.type==='visit');});persist();renderAll();showToast('Visit removed');}
@@ -1545,7 +1551,7 @@ function saveTask(){
   var t=TASK_EDIT&&TASK_EDIT.id&&findTask(TASK_EDIT.loc,TASK_EDIT.cid,TASK_EDIT.id),target=S[l].items[cid]||(S[l].items[cid]=[]);
   if(t){saveSnapAt(TASK_EDIT.loc,TASK_EDIT.cid);if(TASK_EDIT.loc!==l||TASK_EDIT.cid!==cid){S[TASK_EDIT.loc].items[TASK_EDIT.cid]=S[TASK_EDIT.loc].items[TASK_EDIT.cid].filter(function(x){return x.id!==t.id;});saveSnapAt(l,cid);target.push(t);}t.text=title;t.dueDate=due;t.assignedTo=assigned;t.note=note;if(TASK_EDIT.sourceVisitId)t.sourceVisitId=TASK_EDIT.sourceVisitId;}
   else{saveSnapAt(l,cid);t={id:'t_'+Date.now(),type:'task',text:title,dueDate:due,assignedTo:assigned,createdBy:S.user||'Unknown',createdAt:new Date().toISOString(),taskStatus:'open',note:note,sourceVisitId:TASK_EDIT&&TASK_EDIT.sourceVisitId||null};target.push(t);}
-  TASK_EDIT=null;closeMo('mo-task');persist();renderAll();showToast('Follow-up task saved');
+  TASK_EDIT=null;closeMo('mo-task');persist();renderAll();showToast('Task saved ✅');
 }
 function toggleTask(customerKey,taskId){var p=customerKey.split('|'),l=p[0],cid=p.slice(1).join('|'),t=findTask(l,cid,taskId);if(!t)return;saveSnapAt(l,cid);if(t.taskStatus==='done'){t.taskStatus='open';t.completedAt=null;t.completedBy=null;}else{t.taskStatus='done';t.completedAt=new Date().toISOString();t.completedBy=S.user||'Unknown';}persist();renderAll();showToast(t.taskStatus==='done'?'Task completed ✅':'Task reopened');}
 function deleteTask(customerKey,taskId){if(!confirm('Delete this follow-up task?'))return;var p=customerKey.split('|'),l=p[0],cid=p.slice(1).join('|');saveSnapAt(l,cid);S[l].items[cid]=(S[l].items[cid]||[]).filter(function(t){return!(t.id===taskId&&t.type==='task');});persist();renderAll();showToast('Task removed');}
