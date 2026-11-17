@@ -773,7 +773,7 @@ function idbInit(cb){
     req.onerror=function(){cb(null);};
   }catch(e){cb(null);}
 }
-function idbPut(entry){idbInit(function(db){if(!db)return;try{db.transaction('snaps','readwrite').objectStore('snaps').put(entry);}catch(e){}});}
+function idbPut(entry,cb){idbInit(function(db){if(!db){if(cb)cb(false);return;}try{var tx=db.transaction('snaps','readwrite');tx.objectStore('snaps').put(entry);tx.oncomplete=function(){if(cb)cb(true);};tx.onerror=tx.onabort=function(){if(cb)cb(false);};}catch(e){if(cb)cb(false);}});}
 function idbGetAll(cb){
   idbInit(function(db){
     if(!db)return cb([]);
@@ -823,8 +823,12 @@ function stripPhotos(data){
   return data;
 }
 function clearLocalPhotoBackups(){
-  try{var snaps=JSON.parse(localStorage.getItem(SNAP_KEY)||'[]');snaps.forEach(function(s){stripPhotos(s.data);});localStorage.setItem(SNAP_KEY,JSON.stringify(snaps));}catch(e){}
-  idbGetAll(function(snaps){snaps.forEach(function(s){stripPhotos(s.data);idbPut(s);});});
+  var snaps=[];try{snaps=JSON.parse(localStorage.getItem(SNAP_KEY)||'[]');}catch(e){}
+  snaps.forEach(function(s){stripPhotos(s.data);});
+  idbGetAll(function(existing){existing.forEach(function(s){stripPhotos(s.data);idbPut(s);});});
+  if(!snaps.length)return;
+  var remaining=snaps.length,allSaved=true;
+  snaps.forEach(function(s){idbPut(s,function(ok){if(!ok)allSaved=false;if(--remaining===0&&allSaved){try{localStorage.removeItem(SNAP_KEY);}catch(e){}}});});
 }
 function mkPayload(){
   stripPhotos(S);
@@ -838,12 +842,8 @@ function takeSnap(label){
     var now=Date.now();
     if(!label&&now-LAST_SNAP_TS<3600000)return;
     LAST_SNAP_TS=now;
-    var snaps=[];try{snaps=JSON.parse(localStorage.getItem(SNAP_KEY)||'[]');}catch(e){}
     var entry={ts:new Date().toISOString(),label:label||'auto',items:n,data:mkPayload()};
-    snaps.unshift(entry);
-    if(snaps.length>10)snaps=snaps.slice(0,10);
-    localStorage.setItem(SNAP_KEY,JSON.stringify(snaps));
-    idbPut(entry);
+    idbPut(entry,function(ok){if(!ok){try{localStorage.setItem(SNAP_KEY,JSON.stringify([entry]));}catch(e){}}});
   }catch(e){}
 }
 function renderSnapList(){
@@ -898,7 +898,7 @@ function persist(){
       if(ok){if(localStorage.getItem(KEY+'_pending')===(p.saved_at||'pending')){localStorage.removeItem(KEY+'_pending');OFFLINE_Q=null;}if(dot&&!SB_SAVE_PENDING)dot.className='';clearSyncedState();}
       else{OFFLINE_Q=p;if(dot){dot.style.background='var(--orange)';setTimeout(function(){dot.style.background='';},3000);}showToast('Cloud sync paused — changes saved locally');if(navigator.onLine)setTimeout(function(){retryOfflineSync();},4000);}
     });
-  }catch(e){alert('Save failed — storage may be full. Export a backup!');}
+  }catch(e){var reason=e&&e.name==='QuotaExceededError'?'device storage is full':'device storage is unavailable';alert('This change was not saved — '+reason+'. Keep the app open and export a JSON backup before reloading.');}
 }
 function load(){
   try{
