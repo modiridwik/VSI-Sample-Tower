@@ -42,6 +42,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 #tu-nm{font-size:11px;font-weight:700;color:rgba(255,255,255,0.85);}
 #save-dot{width:7px;height:7px;border-radius:50%;background:var(--teal);flex-shrink:0;transition:background 0.3s;}
 #save-dot.saving{background:var(--gold-mid);animation:pulse 0.8s infinite;}
+.sync-btn{height:34px;min-width:42px;padding:0 8px;border-radius:var(--rs);border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.08);color:white;font:600 12px -apple-system,sans-serif;cursor:pointer;flex-shrink:0;}
+.sync-btn:disabled{opacity:.65;cursor:wait;}
+.sync-btn.syncing span{display:inline-block;animation:syncspin .8s linear infinite;}
+@keyframes syncspin{to{transform:rotate(360deg)}}
+#pull-sync-indicator{position:fixed;top:calc(var(--tbh) + 7px);left:50%;z-index:250;width:36px;height:36px;margin-left:-18px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--white);color:var(--teal);box-shadow:var(--shadow);font-size:20px;font-weight:700;opacity:0;transform:translateY(-50px);transition:opacity .14s,transform .14s;pointer-events:none;}
+#pull-sync-indicator.on{opacity:1;}
+#pull-sync-indicator.ready{background:var(--teal);color:white;}
+#pull-sync-indicator.syncing{opacity:1;transform:translateY(0);animation:syncspin .8s linear infinite;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
 #bnav{display:none;position:fixed;bottom:0;left:0;right:0;height:var(--bnh);background:var(--charcoal);border-top:1px solid rgba(255,255,255,0.1);z-index:200;flex-direction:row;}
 .bn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:rgba(255,255,255,0.4);border:none;background:transparent;font-family:-apple-system,sans-serif;padding:4px 0;transition:color 0.2s;}
@@ -599,12 +607,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <button class="tb-tab" onclick="showView('warehouse')">Warehouse</button>
   </div>
   <button class="tbb" onclick="openMo('mo-backup')" title="Backup">🛡️</button>
+  <button class="sync-btn" id="sync-btn" onclick="syncNow(true)" aria-label="Sync now" title="Sync now"><span>↻</span> Sync</button>
   <div id="tb-user" onclick="openMo('mo-user')">
     <div id="tu-av">?</div>
     <div id="tu-nm">Sign in</div>
   </div>
   <div id="save-dot" title="Saved"></div>
 </div>
+<div id="pull-sync-indicator" aria-hidden="true">↻</div>
 <!-- BOTTOM NAV -->
 <div id="bnav">
   <button class="bn on" onclick="showView('dash')"><span class="bn-ic">📊</span><span class="bn-lb">Dashboard</span></button>
@@ -802,13 +812,13 @@ function idbRestore(ts){
 
 // ── STORAGE ──────────────────────────────────────────────────────
 var SB_SAVE_PENDING=false,SYNC_WARNING_ACTIVE=false;
-var SB_REV=null,SB_CONFLICT=false,SB_CHAIN=Promise.resolve(),SB_WRITES=0,SB_RETRYING=false;
+var SB_REV=null,SB_CONFLICT=false,SB_CHAIN=Promise.resolve(),SB_WRITES=0,SB_RETRYING=false,SYNC_IN_FLIGHT=false,SYNC_RETRY_TIMER=null,SYNC_RETRY_MS=5000;
 try{SB_REV=localStorage.getItem(KEY+'_revision')||null;}catch(e){}
 function syncWarning(message){
   var el=document.getElementById('sync-warning');
   if(!el){el=document.createElement('div');el.id='sync-warning';el.setAttribute('role','status');el.style.cssText='position:sticky;top:56px;z-index:201;background:#FFF2D8;color:#704900;padding:7px 12px;font-size:12px;font-weight:600;border-bottom:1px solid #E0BD69';document.body.prepend(el);}
   SYNC_WARNING_ACTIVE=true;
-  el.textContent='⚠️ Saved on this phone. Cloud backup needs attention—please ask Ridwik for help.';
+  el.textContent=SB_CONFLICT?'⚠️ Changes are on this phone. Please ask Ridwik to help sync.':'⚠️ Saved on this phone. Tap Sync to try again.';
 }
 function localSaveWarning(){var el=document.getElementById('sync-warning');if(!el){el=document.createElement('div');el.id='sync-warning';el.setAttribute('role','status');el.style.cssText='position:sticky;top:56px;z-index:201;background:#FDECEA;color:#822;padding:7px 12px;font-size:12px;font-weight:600;border-bottom:1px solid #C0392B';document.body.prepend(el);}SYNC_WARNING_ACTIVE=true;el.textContent='⚠️ This change could not be saved. Keep the app open and ask Ridwik for help.';}
 function clearSyncWarning(){SYNC_WARNING_ACTIVE=false;var el=document.getElementById('sync-warning');if(el)el.remove();}
@@ -817,8 +827,46 @@ function clearSyncedState(){if(SB_SAVE_PENDING||OFFLINE_Q||SB_CONFLICT)return;cl
 
 var OFFLINE_Q=null;
 window.addEventListener('online',function(){
-  if(OFFLINE_Q){syncWarning('Retrying unsynced local changes…');retryOfflineSync();}
+  if(OFFLINE_Q||document.getElementById('sync-warning'))syncNow(false);
 });
+function scheduleSyncRetry(){
+  if(SYNC_RETRY_TIMER||SB_CONFLICT)return;
+  SYNC_RETRY_TIMER=setTimeout(function(){SYNC_RETRY_TIMER=null;syncNow(false);},SYNC_RETRY_MS);
+  SYNC_RETRY_MS=Math.min(SYNC_RETRY_MS*2,60000);
+}
+function setSyncBusy(busy){
+  var btn=document.getElementById('sync-btn'),pull=document.getElementById('pull-sync-indicator');
+  if(btn){btn.disabled=!!busy;btn.classList.toggle('syncing',!!busy);btn.innerHTML=busy?'<span>↻</span> Syncing':'<span>↻</span> Sync';}
+  if(pull){pull.classList.toggle('syncing',!!busy);if(!busy){pull.classList.remove('on','ready');pull.style.transform='';}}
+}
+function syncNow(manual){
+  if(SYNC_IN_FLIGHT)return Promise.resolve(false);
+  if(SB_SAVE_PENDING){setSyncBusy(false);if(manual)showToast('Saving changes…');return Promise.resolve(false);}
+  if(SYNC_RETRY_TIMER){clearTimeout(SYNC_RETRY_TIMER);SYNC_RETRY_TIMER=null;}
+  SYNC_IN_FLIGHT=true;setSyncBusy(true);
+  if(manual)showToast('Syncing…');
+  var pending=!!OFFLINE_Q;try{pending=pending||!!localStorage.getItem(KEY+'_pending');}catch(e){}
+  return sbLoad().then(function(row){
+    if(!row||!row.data){syncWarning('');scheduleSyncRetry();return false;}
+    var remoteTs=new Date(row.updated_at||0).getTime(),localTs=new Date(S.saved_at||0).getTime();
+    if(row.data.saved_at===S.saved_at){setSBRevision(row.updated_at);try{localStorage.removeItem(KEY+'_pending');}catch(e){}OFFLINE_Q=null;SB_CONFLICT=false;clearSyncWarning();SYNC_RETRY_MS=5000;if(manual)showToast('Everything is up to date ✅');return true;}
+    if(pending||remoteTs<localTs){
+      if(SB_REV&&row.updated_at===SB_REV){SB_CONFLICT=false;OFFLINE_Q=mkPayload();try{localStorage.setItem(KEY+'_pending',S.saved_at||'pending');}catch(e){}return retryOfflineSync(row).then(function(ok){if(ok)SYNC_RETRY_MS=5000;else if(!SB_CONFLICT)scheduleSyncRetry();if(manual&&ok)showToast('Changes synced ✅');return ok;});}
+      SB_CONFLICT=true;syncWarning('');return false;
+    }
+    SB_CONFLICT=false;applyRemote(row,true);SYNC_RETRY_MS=5000;if(manual)showToast('Latest updates loaded ✅');return true;
+  }).catch(function(){syncWarning('');scheduleSyncRetry();return false;}).then(function(ok){
+    if(!ok&&!SB_CONFLICT)scheduleSyncRetry();
+    return ok;
+  }).finally(function(){SYNC_IN_FLIGHT=false;setSyncBusy(false);});
+}
+function initPullToSync(){
+  var startY=null,lastDelta=0,indicator=document.getElementById('pull-sync-indicator'),threshold=78;
+  document.addEventListener('touchstart',function(e){if(document.querySelector('.mo.on')||window.scrollY>0||!e.touches||!e.touches.length)return;var t=e.target;if(t&&t.closest&&t.closest('input,textarea,select,button,a,[contenteditable="true"]'))return;startY=e.touches[0].clientY;lastDelta=0;},{passive:true});
+  document.addEventListener('touchmove',function(e){if(startY===null||!e.touches||!e.touches.length)return;lastDelta=Math.max(0,e.touches[0].clientY-startY);if(lastDelta>0&&e.cancelable)e.preventDefault();if(lastDelta>12){indicator.classList.add('on');indicator.classList.toggle('ready',lastDelta>=threshold);indicator.style.transform='translateY('+Math.min(34,lastDelta*.38-22)+'px)';}},{passive:false});
+  function finish(){if(startY===null)return;var trigger=lastDelta>=threshold;startY=null;lastDelta=0;if(trigger){indicator.classList.remove('ready');syncNow(true);}else if(!SYNC_IN_FLIGHT){indicator.classList.remove('on');indicator.style.transform='';}}
+  document.addEventListener('touchend',finish,{passive:true});document.addEventListener('touchcancel',finish,{passive:true});
+}
 function stripPhotos(data){
   if(!data)return data;
   ['sar','pin'].forEach(function(l){var loc=data[l];if(loc&&Array.isArray(loc.customers))loc.customers.forEach(function(c){delete c.photo;delete c.photoDate;delete c.photoBy;});});
@@ -898,7 +946,7 @@ function persist(){
       SB_SAVE_PENDING=SB_WRITES>0;
       var dot=document.getElementById('save-dot');
       if(ok){if(localStorage.getItem(KEY+'_pending')===(p.saved_at||'pending')){localStorage.removeItem(KEY+'_pending');OFFLINE_Q=null;}if(dot&&!SB_SAVE_PENDING)dot.className='';clearSyncedState();}
-      else{OFFLINE_Q=p;if(dot){dot.style.background='var(--orange)';setTimeout(function(){dot.style.background='';},3000);}if(navigator.onLine)setTimeout(function(){retryOfflineSync();},4000);}
+      else{OFFLINE_Q=p;if(dot){dot.style.background='var(--orange)';setTimeout(function(){dot.style.background='';},3000);}scheduleSyncRetry();}
     });
   }catch(e){localSaveWarning();showToast('Change not saved—ask Ridwik for help');return false;}
   return true;
@@ -918,6 +966,11 @@ function load(){
   }catch(e){return defState();}
 }
 function sbHeaders(){return{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json'};}
+function sbFetch(url,options){
+  if(typeof AbortController==='undefined')return fetch(url,options);
+  var controller=new AbortController(),timer=setTimeout(function(){controller.abort();},20000),opts=Object.assign({},options||{},{signal:controller.signal});
+  return fetch(url,opts).finally(function(){clearTimeout(timer);});
+}
 function sbSave(payload){
   // Freeze each write; serialize requests so earlier edits cannot finish last.
   var frozen=JSON.parse(JSON.stringify(payload));
@@ -926,7 +979,7 @@ function sbSave(payload){
   var task=SB_CHAIN.then(function(){
     if(!SB_REV||SB_CONFLICT){syncWarning('Cloud sync is paused until cloud data can be loaded and reconciled.');return false;}
     frozen.saved_at=new Date(Math.max(Date.now(),new Date(SB_REV).getTime()+1)).toISOString();
-    return fetch(SB_URL+'/app_data?id=eq.vsi_v1&updated_at=eq.'+encodeURIComponent(SB_REV)+'&select=id,updated_at',{
+    return sbFetch(SB_URL+'/app_data?id=eq.vsi_v1&updated_at=eq.'+encodeURIComponent(SB_REV)+'&select=id,updated_at',{
       method:'PATCH',headers:Object.assign({},sbHeaders(),{'Prefer':'return=representation'}),
       body:JSON.stringify({data:savedPayload,updated_at:frozen.saved_at})
     }).then(function(r){if(!r.ok)return r.text().then(function(body){throw new Error('HTTP '+r.status+(body?' — '+body.slice(0,140):''));});return r.json();})
@@ -952,7 +1005,7 @@ function sbBackup(payload){
   }).catch(function(){return false;});
 }
 function sbLoad(){
-  return fetch(SB_URL+'/app_data?id=eq.vsi_v1&select=data,updated_at&limit=1',{headers:sbHeaders()})
+  return sbFetch(SB_URL+'/app_data?id=eq.vsi_v1&select=data,updated_at&limit=1',{headers:sbHeaders()})
   .then(function(r){return r.ok?r.json():null;})
   .then(function(rows){return(rows&&rows.length)?rows[0]:null;})
   .catch(function(){return null;});
@@ -1029,7 +1082,7 @@ function startPolling(){
   if(SB_POLL)return;
   SB_POLL=setInterval(checkRemoteRevision,30000);
 }
-document.addEventListener('visibilitychange',function(){if(!document.hidden)checkRemoteRevision();});
+document.addEventListener('visibilitychange',function(){if(!document.hidden){if(OFFLINE_Q||document.getElementById('sync-warning'))syncNow(false);else checkRemoteRevision();}});
 
 // ── HELPERS ───────────────────────────────────────────────────────
 function localDateValue(date){var d=new Date(date);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
@@ -1746,6 +1799,7 @@ document.getElementById('thresh').value = S.threshold;
 updateUserUI();
 applySB();
 renderAll();
+initPullToSync();
 if(!S.user) setTimeout(function(){openMo('mo-user');},400);
 var lb = localStorage.getItem('vsi_last_backup');
 var daysSinceBak = lb ? Math.floor((Date.now()-new Date(lb).getTime())/86400000) : 999;
@@ -1754,9 +1808,9 @@ if(daysSinceBak>=7 && realItemCount>0){
   setTimeout(function(){exportJSON();showToast('💾 Auto-backup downloaded ('+daysSinceBak+' days since last)');},3000);
 }
 sbLoad().then(function(row){
-  if(row&&OFFLINE_Q){retryOfflineSync(row);}
+  if(row&&OFFLINE_Q){retryOfflineSync(row).then(function(ok){if(!ok&&!SB_CONFLICT)scheduleSyncRetry();});}
   else if(row){applyRemote(row,false);}
-  else{syncWarning('Cloud data could not be loaded. Automatic cloud uploads are paused to prevent a reset.');}
+  else{syncWarning('');scheduleSyncRetry();}
   startPolling();
 });
 </script>
