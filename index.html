@@ -46,10 +46,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .sync-btn:disabled{opacity:.65;cursor:wait;}
 .sync-btn.syncing span{display:inline-block;animation:syncspin .8s linear infinite;}
 @keyframes syncspin{to{transform:rotate(360deg)}}
-#pull-sync-indicator{position:fixed;top:calc(var(--tbh) + 7px);left:50%;z-index:250;width:36px;height:36px;margin-left:-18px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--white);color:var(--teal);box-shadow:var(--shadow);font-size:20px;font-weight:700;opacity:0;transform:translateY(-50px);transition:opacity .14s,transform .14s;pointer-events:none;}
-#pull-sync-indicator.on{opacity:1;}
-#pull-sync-indicator.ready{background:var(--teal);color:white;}
-#pull-sync-indicator.syncing{opacity:1;transform:translateY(0);animation:syncspin .8s linear infinite;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
 #bnav{display:none;position:fixed;bottom:0;left:0;right:0;height:var(--bnh);background:var(--charcoal);border-top:1px solid rgba(255,255,255,0.1);z-index:200;flex-direction:row;}
 .bn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:rgba(255,255,255,0.4);border:none;background:transparent;font-family:-apple-system,sans-serif;padding:4px 0;transition:color 0.2s;}
@@ -614,7 +610,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
   <div id="save-dot" title="Saved"></div>
 </div>
-<div id="pull-sync-indicator" aria-hidden="true">↻</div>
 <!-- BOTTOM NAV -->
 <div id="bnav">
   <button class="bn on" onclick="showView('dash')"><span class="bn-ic">📊</span><span class="bn-lb">Dashboard</span></button>
@@ -834,9 +829,8 @@ function scheduleSyncRetry(){
   SYNC_RETRY_MS=Math.min(SYNC_RETRY_MS*2,60000);
 }
 function setSyncBusy(busy){
-  var btn=document.getElementById('sync-btn'),pull=document.getElementById('pull-sync-indicator');
+  var btn=document.getElementById('sync-btn');
   if(btn){btn.disabled=!!busy;btn.classList.toggle('syncing',!!busy);btn.innerHTML=busy?'<span>↻</span> Syncing':'<span>↻</span> Sync';}
-  if(pull){pull.classList.toggle('syncing',!!busy);if(!busy){pull.classList.remove('on','ready');pull.style.transform='';}}
 }
 function syncNow(manual){
   if(SYNC_IN_FLIGHT)return Promise.resolve(false);
@@ -858,13 +852,6 @@ function syncNow(manual){
     if(!ok&&!SB_CONFLICT)scheduleSyncRetry();
     return ok;
   }).finally(function(){SYNC_IN_FLIGHT=false;setSyncBusy(false);});
-}
-function initPullToSync(){
-  var startY=null,lastDelta=0,indicator=document.getElementById('pull-sync-indicator'),threshold=78;
-  document.addEventListener('touchstart',function(e){if(document.querySelector('.mo.on')||window.scrollY>0||!e.touches||!e.touches.length)return;var t=e.target;if(t&&t.closest&&t.closest('input,textarea,select,button,a,[contenteditable="true"]'))return;startY=e.touches[0].clientY;lastDelta=0;},{passive:true});
-  document.addEventListener('touchmove',function(e){if(startY===null||!e.touches||!e.touches.length)return;lastDelta=Math.max(0,e.touches[0].clientY-startY);if(lastDelta>0&&e.cancelable)e.preventDefault();if(lastDelta>12){indicator.classList.add('on');indicator.classList.toggle('ready',lastDelta>=threshold);indicator.style.transform='translateY('+Math.min(34,lastDelta*.38-22)+'px)';}},{passive:false});
-  function finish(){if(startY===null)return;var trigger=lastDelta>=threshold;startY=null;lastDelta=0;if(trigger){indicator.classList.remove('ready');syncNow(true);}else if(!SYNC_IN_FLIGHT){indicator.classList.remove('on');indicator.style.transform='';}}
-  document.addEventListener('touchend',finish,{passive:true});document.addEventListener('touchcancel',finish,{passive:true});
 }
 function stripPhotos(data){
   if(!data)return data;
@@ -1797,7 +1784,6 @@ document.getElementById('thresh').value = S.threshold;
 updateUserUI();
 applySB();
 renderAll();
-initPullToSync();
 if(!S.user) setTimeout(function(){openMo('mo-user');},400);
 var lb = localStorage.getItem('vsi_last_backup');
 var daysSinceBak = lb ? Math.floor((Date.now()-new Date(lb).getTime())/86400000) : 999;
