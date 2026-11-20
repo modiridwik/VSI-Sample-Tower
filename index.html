@@ -292,7 +292,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .visit-form-label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--charcoal-light);margin:2px 0 5px;}
 .dash-summary{margin:0 0 10px;}
 .dash-summary .stat{cursor:default;}
-.dash-task-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 10px;}
+.dash-task-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0 0 10px;}
 .dash-task-filters select{width:100%;padding:9px 10px;border:1px solid var(--stone-dark);border-radius:var(--rs);background:var(--white);font:600 12px -apple-system,sans-serif;color:var(--charcoal);}
 .dash-task-list{max-height:60vh;overflow:auto;overscroll-behavior:contain;}
 .dash-task-count{font-size:11px;font-weight:600;color:var(--charcoal-light);margin:-4px 0 9px;}
@@ -649,7 +649,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="dc-title"><span>📋 Assigned Tasks</span><button class="visit-add task-add" onclick="openTaskMo(S.dashLoc,null,CAL_SELECTED)">＋ Add Task</button></div>
       <div class="dash-task-filters">
         <select id="dash-task-assignee" aria-label="Filter tasks by assignee" onchange="renderAssignedTasks()"><option value="all">All team members</option><option value="Ridwik">Ridwik</option><option value="Jason">Jason</option><option value="Rob">Rob</option><option value="Jr">Jr</option><option value="Derrious">Derrious</option><option value="Sara">Sara</option><option value="Buddy">Buddy</option><option value="__unassigned__">Unassigned</option></select>
-        <select id="dash-task-location" aria-label="Filter tasks by location" onchange="renderAssignedTasks()"><option value="all">All locations</option><option value="sar">Sarasota</option><option value="pin">Pinellas Park</option></select>
         <select id="dash-task-status" aria-label="Filter tasks by status" onchange="renderAssignedTasks()"><option value="open">Open tasks</option><option value="all">All tasks</option><option value="done">Completed tasks</option></select>
       </div>
       <div class="dash-task-count" id="dash-task-count"></div>
@@ -1192,8 +1191,8 @@ function taskMarkup(r,showCustomer){
 }
 function renderAssignedTasks(){
   var list=document.getElementById('dash-task-list');if(!list)return;
-  var assignee=document.getElementById('dash-task-assignee').value,location=document.getElementById('dash-task-location').value,status=document.getElementById('dash-task-status').value;
-  var rows=getTaskRows(location==='all'?null:location).filter(function(r){
+  var assignee=document.getElementById('dash-task-assignee').value,status=document.getElementById('dash-task-status').value;
+  var rows=getTaskRows(S.dashLoc||'sar').filter(function(r){
     var done=r.task.taskStatus==='done';
     return(assignee==='all'||(assignee==='__unassigned__'?!r.task.assignedTo:r.task.assignedTo===assignee))&&(status==='all'||(status==='done'?done:!done));
   }).sort(function(a,b){var ad=a.due||'9999-12-31',bd=b.due||'9999-12-31';return ad.localeCompare(bd)||a.customer.name.localeCompare(b.customer.name)||String(a.task.text||'').localeCompare(String(b.task.text||''));});
