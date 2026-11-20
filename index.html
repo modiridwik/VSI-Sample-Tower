@@ -1105,6 +1105,7 @@ function saveSnapAt(l,cid){
 }
 function esc(s){return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/\r/g,'\\r').replace(/\n/g,'\\n').replace(/'/g,"\\'").replace(/&/g,'&amp;').replace(/\"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function html(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;').replace(/'/g,'&#39;');}
+function alphaCompare(a,b){return String(a||'').localeCompare(String(b||''),undefined,{sensitivity:'base',numeric:true});}
 
 // ── MODALS ────────────────────────────────────────────────────────
 function openMo(id){
@@ -1135,7 +1136,7 @@ function renderSB(){
   var el=document.getElementById('sb-list');el.innerHTML='';
   var l=S.sbLoc,now=Date.now();
   var cs=cLoc(l).customers.filter(function(c){return!VSI_Q||c.name.toLowerCase().indexOf(VSI_Q)!==-1;})
-    .slice().sort(function(a,b){if(a.starred&&!b.starred)return-1;if(!a.starred&&b.starred)return 1;var ta=a.tier||'b',tb=b.tier||'b';if(ta!==tb)return ta<tb?-1:1;return a.name.toLowerCase()<b.name.toLowerCase()?-1:1;});
+    .slice().sort(function(a,b){return alphaCompare(a.name,b.name);});
   if(!cs.length){el.innerHTML='<div style="padding:20px;text-align:center;font-size:12px;color:var(--charcoal-light)">'+(VSI_Q?'No results':'No customers')+'</div>';return;}
   cs.forEach(function(c){
     var its=S[l].items[c.id]||[];
@@ -1317,15 +1318,13 @@ function renderCustomerResults(){
   var el=document.getElementById('customer-results');if(!el)return;
   var l=S.cbLoc,q=(S.cbSearch||'').toLowerCase(),now=Date.now(),category=S.cbCategory||'all',market=S.cbMarket||'all';
   var cs=cLoc(l).customers.filter(function(c){var matchName=!q||c.name.toLowerCase().indexOf(q)!==-1;var cat=c.category||'fabricator';var mkt=CUSTOMER_MARKETS.indexOf(c.market)!==-1?c.market:'__unassigned__';return matchName&&(category==='all'||cat===category)&&(market==='all'||mkt===market);})
-    .slice().sort(function(a,b){if(a.starred&&!b.starred)return-1;if(!a.starred&&b.starred)return 1;var ta=a.tier||'b',tb=b.tier||'b';if(ta!==tb)return ta<tb?-1:1;return a.name.toLowerCase()<b.name.toLowerCase()?-1:1;});
+    .slice().sort(function(a,b){return alphaCompare(a.name,b.name);});
   var h='';
   if(!cs.length){el.innerHTML='<div style="text-align:center;padding:36px;color:var(--charcoal-light)"><div style="font-size:38px;margin-bottom:8px">🏪</div><p style="font-weight:600;font-size:14px;margin-bottom:14px">No customers found.</p><button onclick="openMo(\'mo-nc\')" style="padding:10px 20px;background:var(--gold);color:white;border:none;border-radius:var(--rs);font-family:-apple-system,sans-serif;font-weight:700;font-size:13px;cursor:pointer">＋ Add Customer</button></div>';return;}
-  var starred=cs.filter(function(c){return!!c.starred;}),regular=cs.filter(function(c){return!c.starred;});
-  if(starred.length){h+='<div class="sec-lbl">⭐ Starred</div>';starred.forEach(function(c){h+=cbRow(l,c,now);});}
   var groupLabel=category==='all'?'All Customers':categoryLabel(category)+'s';
   if(market!=='all')groupLabel+=' · '+(market==='__unassigned__'?'Unassigned City / Location':market);
   h+='<div class="sec-lbl">'+groupLabel+' ('+cs.length+')</div>';
-  regular.forEach(function(c){h+=cbRow(l,c,now);});
+  cs.forEach(function(c){h+=cbRow(l,c,now);});
   el.innerHTML=h;
 }
 function cbLoc(l){S.cbLoc=l;renderBrowser();}
@@ -1407,10 +1406,10 @@ function renderItemList(){
   var its=S[S.loc].items[S.activeCustomer]||[];
   var notes=its.filter(function(i){return i.type==='note';});
   var legacy=its.filter(function(i){return i.type==='legacy';});
-  var placed=its.filter(function(i){return i.done&&i.type==='color';});
-  var ordered=its.filter(function(i){return i.status==='ordered'&&i.type==='color';});
-  var nr=its.filter(function(i){return i.status==='needs-rep'&&i.type==='color';});
-  var np=its.filter(function(i){return!i.done&&i.type==='color'&&i.status!=='ordered'&&i.status!=='needs-rep';});
+  var placed=its.filter(function(i){return i.done&&i.type==='color';}).sort(function(a,b){return alphaCompare(a.text,b.text);});
+  var ordered=its.filter(function(i){return i.status==='ordered'&&i.type==='color';}).sort(function(a,b){return alphaCompare(a.text,b.text);});
+  var nr=its.filter(function(i){return i.status==='needs-rep'&&i.type==='color';}).sort(function(a,b){return alphaCompare(a.text,b.text);});
+  var np=its.filter(function(i){return!i.done&&i.type==='color'&&i.status!=='ordered'&&i.status!=='needs-rep';}).sort(function(a,b){return alphaCompare(a.text,b.text);});
   var c=document.getElementById('item-list');if(!c)return;c.innerHTML='';
   if(notes.length)addSec(c,'📝 Notes · '+notes.length,notes);
   if(placed.length)addSec(c,'✅ Colors Placed · '+placed.length,placed);
@@ -1488,10 +1487,10 @@ function resort(){
   var arr=S[S.loc].items[S.activeCustomer];
   var notes=arr.filter(function(i){return i.type==='note';});
   var disp=arr.filter(function(i){return i.type==='display'||i.type==='visit'||i.type==='task';});
-  var pl=arr.filter(function(i){return i.type==='color'&&i.done;}).sort(function(a,b){return a.text<b.text?-1:1;});
-  var ord=arr.filter(function(i){return i.type==='color'&&i.status==='ordered';}).sort(function(a,b){return a.text<b.text?-1:1;});
-  var nr=arr.filter(function(i){return i.type==='color'&&i.status==='needs-rep';}).sort(function(a,b){return a.text<b.text?-1:1;});
-  var np=arr.filter(function(i){return i.type==='color'&&!i.done&&i.status!=='ordered'&&i.status!=='needs-rep';}).sort(function(a,b){return a.text<b.text?-1:1;});
+  var pl=arr.filter(function(i){return i.type==='color'&&i.done;}).sort(function(a,b){return alphaCompare(a.text,b.text);});
+  var ord=arr.filter(function(i){return i.type==='color'&&i.status==='ordered';}).sort(function(a,b){return alphaCompare(a.text,b.text);});
+  var nr=arr.filter(function(i){return i.type==='color'&&i.status==='needs-rep';}).sort(function(a,b){return alphaCompare(a.text,b.text);});
+  var np=arr.filter(function(i){return i.type==='color'&&!i.done&&i.status!=='ordered'&&i.status!=='needs-rep';}).sort(function(a,b){return alphaCompare(a.text,b.text);});
   S[S.loc].items[S.activeCustomer]=notes.concat(disp).concat(pl).concat(ord).concat(nr).concat(np);
 }
 function toggleColor(id,btn){
@@ -1725,7 +1724,7 @@ function exportCSV(){
   try{
     var rows=[['Location','Customer','Market','Category','Tier','Tower Types','Colors Placed','Ordered','Needs Replacement','Missing','% Complete','Last Updated','By']];
     [['sar','Sarasota'],['pin','Pinellas Park']].forEach(function(pair){
-      var l=pair[0],ll=pair[1];S[l].customers.forEach(function(c){
+      var l=pair[0],ll=pair[1];S[l].customers.slice().sort(function(a,b){return alphaCompare(a.name,b.name);}).forEach(function(c){
         var its=S[l].items[c.id]||[];
         var pl=its.filter(function(i){return i.done&&i.type==='color';}).map(function(i){return i.text;});
         var ord=its.filter(function(i){return i.type==='color'&&i.status==='ordered';}).map(function(i){return i.text;});
@@ -1749,7 +1748,7 @@ function exportPDF(){
   [['sar','Sarasota'],['pin','Pinellas Park']].forEach(function(pair){
     var l=pair[0],ll=pair[1];h+='<h2>📍 '+ll+' ('+S[l].customers.length+')</h2>';
     h+='<table><tr><th>Customer</th><th>Market</th><th>Tier</th><th>Tower</th><th>Placed</th><th>Ordered</th><th>Missing</th><th>%</th><th>Last Visit</th></tr>';
-    S[l].customers.slice().sort(function(a,b){return a.name<b.name?-1:1;}).forEach(function(c){
+    S[l].customers.slice().sort(function(a,b){return alphaCompare(a.name,b.name);}).forEach(function(c){
       var its=S[l].items[c.id]||[];
       var pl=its.filter(function(i){return i.done&&i.type==='color';});
       var ms=its.filter(function(i){return!i.done&&i.type==='color'&&i.status!=='ordered';});
