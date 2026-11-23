@@ -292,6 +292,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .dash-task-filters select{width:100%;padding:9px 10px;border:1px solid var(--stone-dark);border-radius:var(--rs);background:var(--white);font:600 12px -apple-system,sans-serif;color:var(--charcoal);}
 .dash-task-list{max-height:60vh;overflow:auto;overscroll-behavior:contain;}
 .dash-task-count{font-size:11px;font-weight:600;color:var(--charcoal-light);margin:-4px 0 9px;}
+.dash-task-toggle{border:1px solid var(--stone-dark);background:var(--white);border-radius:7px;padding:6px 9px;color:var(--charcoal-mid);font:600 11px -apple-system,sans-serif;cursor:pointer;white-space:nowrap;}
+.dash-task-collapsed .dash-task-body{display:none;}
 @media(max-width:500px){.dash-task-filters{grid-template-columns:1fr;gap:6px;}}
 @media(max-width:600px){
   .visit-day{min-height:55px;padding:4px 3px;gap:2px;}
@@ -636,19 +638,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <div class="view on" id="view-dash"><div class="vi">
     <div class="visit-head">
       <div><div class="dtitle">Visit Planner</div><div class="dsub">Plan visits, manage follow-ups, and search visit history</div></div>
-      <div class="visit-actions"><button class="visit-add" onclick="openVisitMo(S.dashLoc,null,CAL_SELECTED,'planned')">＋ Add Visit</button><button class="visit-add task-add" onclick="openTaskMo(S.dashLoc,null,CAL_SELECTED)">＋ Add Task</button></div>
+      <div class="visit-actions"><button class="visit-add" onclick="openVisitMo(S.dashLoc,null,CAL_SELECTED,'planned')">＋ Add Visit</button></div>
     </div>
     <div class="dash-top"><div class="seg"><button class="seg-btn on" id="dl-sar" onclick="switchDL('sar')">📍 Sarasota</button><button class="seg-btn" id="dl-pin" onclick="switchDL('pin')">📍 Pinellas Park</button></div></div>
     <div class="stat-grid dash-summary" id="dash-summary"></div>
-    <div class="dc" id="dash-assigned-tasks">
-      <div class="dc-title"><span>📋 Assigned Tasks</span><button class="visit-add task-add" onclick="openTaskMo(S.dashLoc,null,CAL_SELECTED)">＋ Add Task</button></div>
-      <div class="dash-task-filters">
-        <select id="dash-task-assignee" aria-label="Filter tasks by assignee" onchange="renderAssignedTasks()"><option value="all">All team members</option><option value="Ridwik">Ridwik</option><option value="Jason">Jason</option><option value="Rob">Rob</option><option value="Jr">Jr</option><option value="Derrious">Derrious</option><option value="Sara">Sara</option><option value="Buddy">Buddy</option><option value="__unassigned__">Unassigned</option></select>
-        <select id="dash-task-status" aria-label="Filter tasks by status" onchange="renderAssignedTasks()"><option value="open">Open tasks</option><option value="all">All tasks</option><option value="done">Completed tasks</option></select>
-      </div>
-      <div class="dash-task-count" id="dash-task-count"></div>
-      <div class="dash-task-list" id="dash-task-list"></div>
-    </div>
     <div class="visit-mode-tabs"><button id="visit-tab-day" onclick="switchDashboardMode('day')">Day Planner</button><button id="visit-tab-month" onclick="switchDashboardMode('month')">Month</button><button id="visit-tab-history" onclick="switchDashboardMode('history')">History</button></div>
     <div id="visit-day-view" class="dc">
       <div class="visit-nav">
@@ -674,6 +667,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="visit-agenda-title"><span>Visit History</span><small id="history-count"></small></div>
       <div class="history-tools"><input id="history-search" type="search" placeholder="Search customer, rep, or visit notes…" oninput="HISTORY_LIMIT=50;renderVisitHistory()"><input id="history-date" type="date" aria-label="Filter history by date" onchange="HISTORY_LIMIT=50;renderVisitHistory()"></div>
       <div id="visit-history-list"></div>
+    </div>
+    <div class="dc dash-task-card dash-task-collapsed" id="dash-assigned-tasks">
+      <div class="dc-title"><span>📋 Tasks <small id="dash-task-count"></small></span><div style="display:flex;align-items:center;gap:7px"><button class="dash-task-toggle" id="dash-task-toggle" aria-expanded="false" onclick="toggleDashboardTasks()">Show tasks</button><button class="visit-add task-add" onclick="openTaskMo(S.dashLoc,null,CAL_SELECTED)">＋ Add Task</button></div></div>
+      <div class="dash-task-body" id="dash-task-body">
+        <div class="dash-task-filters">
+          <select id="dash-task-assignee" aria-label="Filter tasks by assignee" onchange="renderAssignedTasks()"><option value="all">All team members</option><option value="Ridwik">Ridwik</option><option value="Jason">Jason</option><option value="Rob">Rob</option><option value="Jr">Jr</option><option value="Derrious">Derrious</option><option value="Sara">Sara</option><option value="Buddy">Buddy</option><option value="__unassigned__">Unassigned</option></select>
+          <select id="dash-task-status" aria-label="Filter tasks by status" onchange="renderAssignedTasks()"><option value="open">Open tasks</option><option value="all">All tasks</option><option value="done">Completed tasks</option></select>
+        </div>
+        <div class="dash-task-list" id="dash-task-list"></div>
+      </div>
     </div>
   </div></div>
   <div class="view" id="view-customers"><div class="vi">
@@ -757,6 +760,7 @@ function normalizeCollection(data){
 var S,SNAPS={},NT=null,ET=null,VISIT_EDIT=null,VISIT_CUSTOMER_Q='',TASK_EDIT=null,DASH_MODE='day',HISTORY_LIMIT=50;
 var CAL_MONTH=new Date(new Date().getFullYear(),new Date().getMonth(),1);
 var CAL_SELECTED=localDateValue(new Date());
+var DASH_TASKS_COLLAPSED=true;
 
 function defState(){
   var o={catalog_version:CATALOG_VERSION,user:null,threshold:2,sbLoc:'sar',dashLoc:'sar',whLoc:'sar',cbLoc:'sar',cbCategory:'all',cbMarket:'all',loc:'sar',activeCustomer:null,activeView:'dash',showDetail:false,cbSearch:'',sbOpen:window.innerWidth>600,
@@ -1238,7 +1242,7 @@ function renderAssignedTasks(){
     return(assignee==='all'||(assignee==='__unassigned__'?!r.task.assignedTo:r.task.assignedTo===assignee))&&(status==='all'||(status==='done'?done:!done));
   }).sort(function(a,b){var ad=a.due||'9999-12-31',bd=b.due||'9999-12-31';return ad.localeCompare(bd)||a.customer.name.localeCompare(b.customer.name)||String(a.task.text||'').localeCompare(String(b.task.text||''));});
   var open=rows.filter(function(r){return r.task.taskStatus!=='done';}),overdue=open.filter(function(r){return r.due&&r.due<localDateValue(new Date());});
-  document.getElementById('dash-task-count').textContent=rows.length+' task'+(rows.length===1?'':'s')+' shown · '+open.length+' open'+(overdue.length?' · '+overdue.length+' overdue':'');
+  document.getElementById('dash-task-count').textContent=open.length+' open · '+rows.length+' total';
   if(!rows.length){list.innerHTML='<div class="visit-empty">No tasks match these filters.</div>';return;}
   if(assignee!=='all'){list.innerHTML=rows.map(function(r){return taskMarkup(r,true);}).join('');return;}
   var groups={},order=['Ridwik','Jason','Rob','Jr','Derrious','Sara','Buddy','Unassigned'];
@@ -1246,6 +1250,7 @@ function renderAssignedTasks(){
   Object.keys(groups).forEach(function(name){if(order.indexOf(name)===-1)order.push(name);});
   list.innerHTML=order.filter(function(name){return groups[name]&&groups[name].length;}).map(function(name){return'<div class="day-section"><div class="day-section-title">'+html(name)+' <small>'+groups[name].length+'</small></div>'+groups[name].map(function(r){return taskMarkup(r,true);}).join('')+'</div>';}).join('');
 }
+function toggleDashboardTasks(){DASH_TASKS_COLLAPSED=!DASH_TASKS_COLLAPSED;var card=document.getElementById('dash-assigned-tasks'),btn=document.getElementById('dash-task-toggle');if(card)card.classList.toggle('dash-task-collapsed',DASH_TASKS_COLLAPSED);if(btn){btn.textContent=DASH_TASKS_COLLAPSED?'Show tasks':'Minimize';btn.setAttribute('aria-expanded',String(!DASH_TASKS_COLLAPSED));}}
 function visitMarkup(r){
   var v=r.visit,planned=v.visitStatus==='planned',key=esc(r.loc+'|'+r.cid),id=esc(v.id);
   return'<div class="visit-entry"><div class="visit-entry-main"><div class="visit-entry-name">'+html(r.customer.emoji)+' '+html(r.customer.name)+'<span class="visit-state'+(planned?' planned':'')+'">'+(planned?'Planned':'Completed')+'</span></div><div class="visit-entry-meta">'+(r.loc==='sar'?'Sarasota':'Pinellas Park')+' · '+html(v.visitBy||'Unknown')+'</div>'+(v.text?'<div class="visit-entry-note">'+html(v.text)+'</div>':'')+'</div><div class="visit-entry-actions">'+(planned?'<button class="visit-done" onclick="completeVisit(\''+key+'\',\''+id+'\')">Done</button>':'')+'<button onclick="editVisit(\''+key+'\',\''+id+'\')">Edit</button><button onclick="newTaskFromVisit(\''+key+'\',\''+id+'\')">＋ Task</button><button onclick="deleteVisit(\''+key+'\',\''+id+'\')" aria-label="Delete visit">✕</button></div></div>';
@@ -1253,6 +1258,7 @@ function visitMarkup(r){
 function setTaskSection(id,title,rows,showCustomer){var el=document.getElementById(id);if(!el)return;el.innerHTML=rows.length?'<div class="day-section"><div class="day-section-title">'+title+' <small>'+rows.length+'</small></div>'+rows.map(function(r){return taskMarkup(r,showCustomer);}).join('')+'</div>':'<div class="visit-empty">No tasks here.</div>';}
 function renderDash(){
   var l=S.dashLoc||'sar';renderDashSummary(l);renderAssignedTasks();
+  var taskCard=document.getElementById('dash-assigned-tasks'),taskToggle=document.getElementById('dash-task-toggle');if(taskCard)taskCard.classList.toggle('dash-task-collapsed',DASH_TASKS_COLLAPSED);if(taskToggle){taskToggle.textContent=DASH_TASKS_COLLAPSED?'Show tasks':'Minimize';taskToggle.setAttribute('aria-expanded',String(!DASH_TASKS_COLLAPSED));}
   document.getElementById('visit-day-view').style.display=DASH_MODE==='day'?'block':'none';
   document.getElementById('visit-month-view').style.display=DASH_MODE==='month'?'block':'none';
   document.getElementById('visit-history-view').style.display=DASH_MODE==='history'?'block':'none';
@@ -1260,42 +1266,32 @@ function renderDash(){
   if(DASH_MODE==='month')renderMonthPlanner();else if(DASH_MODE==='history')renderVisitHistory();else renderDayPlanner();
 }
 function renderDayPlanner(){
-  var l=S.dashLoc||'sar',today=localDateValue(new Date()),visits=getVisitRows(l).filter(function(r){return r.day===CAL_SELECTED;}).sort(function(a,b){var sa=a.visit.visitStatus==='planned'?0:1,sb=b.visit.visitStatus==='planned'?0:1;return sa-sb||a.customer.name.localeCompare(b.customer.name);});
-  var tasks=getTaskRows(l),open=tasks.filter(function(r){return r.task.taskStatus!=='done';}),overdue=CAL_SELECTED===today?open.filter(function(r){return r.due&&r.due<today;}):[],due=open.filter(function(r){return r.due===CAL_SELECTED;}),undated=open.filter(function(r){return!r.due;});
-  var next=new Date(dateFromValue(CAL_SELECTED));next.setDate(next.getDate()+7);var nextKey=localDateValue(next),upcoming=CAL_SELECTED===today?open.filter(function(r){return r.due>today&&r.due<=nextKey;}):[];
+  var l=S.dashLoc||'sar',visits=getVisitRows(l).filter(function(r){return r.day===CAL_SELECTED;}).sort(function(a,b){var sa=a.visit.visitStatus==='planned'?0:1,sb=b.visit.visitStatus==='planned'?0:1;return sa-sb||a.customer.name.localeCompare(b.customer.name);});
   document.getElementById('visit-day-label').textContent=prettyVisitDate(CAL_SELECTED);
-  document.getElementById('visit-day-summary').textContent=visits.length+' visit'+(visits.length===1?'':'s')+' · '+due.length+' task'+(due.length===1?'':'s')+' due'+(overdue.length?' · '+overdue.length+' overdue':'');
-  var h='';
-  if(overdue.length)h+='<div class="day-section"><div class="day-section-title">⚠️ Overdue <small>'+overdue.length+'</small></div>'+overdue.map(function(r){return taskMarkup(r,true);}).join('')+'</div>';
-  h+='<div class="day-section"><div class="day-section-title">📍 Visits <small>'+visits.length+'</small></div>'+(visits.length?visits.map(visitMarkup).join(''):'<div class="visit-empty">No visits for this date.</div>')+'</div>';
-  h+='<div class="day-section"><div class="day-section-title">✅ Follow-ups due <small>'+due.length+'</small></div>'+(due.length?due.map(function(r){return taskMarkup(r,true);}).join(''):'<div class="visit-empty">No follow-ups due this date.</div>')+'</div>';
-  if(undated.length)h+='<div class="day-section"><div class="day-section-title">📝 Unscheduled tasks <small>'+undated.length+'</small></div>'+undated.slice(0,20).map(function(r){return taskMarkup(r,true);}).join('')+(undated.length>20?'<div class="visit-empty">'+(undated.length-20)+' more unscheduled tasks</div>':'')+'</div>';
-  if(upcoming.length)h+='<div class="day-section"><div class="day-section-title">⏭ Coming up · next 7 days <small>'+upcoming.length+'</small></div>'+upcoming.slice(0,10).map(function(r){return taskMarkup(r,true);}).join('')+(upcoming.length>10?'<div class="visit-empty">'+(upcoming.length-10)+' more upcoming tasks</div>':'')+'</div>';
+  document.getElementById('visit-day-summary').textContent=visits.length+' visit'+(visits.length===1?'':'s');
+  var h='<div class="day-section"><div class="day-section-title">📍 Visits <small>'+visits.length+'</small></div>'+(visits.length?visits.map(visitMarkup).join(''):'<div class="visit-empty">No visits for this date.</div>')+'</div>';
   document.getElementById('visit-day-content').innerHTML=h;
 }
 function renderMonthPlanner(){
-  var l=S.dashLoc||'sar',monthStart=new Date(CAL_MONTH.getFullYear(),CAL_MONTH.getMonth(),1),monthKey=localDateValue(monthStart).slice(0,7),rows=getVisitRows(l),tasks=getTaskRows(l),monthRows=rows.filter(function(r){return r.day.slice(0,7)===monthKey;}),monthTasks=tasks.filter(function(r){return r.due&&r.due.slice(0,7)===monthKey&&r.task.taskStatus!=='done';}),byDay={};
+  var l=S.dashLoc||'sar',monthStart=new Date(CAL_MONTH.getFullYear(),CAL_MONTH.getMonth(),1),monthKey=localDateValue(monthStart).slice(0,7),rows=getVisitRows(l),monthRows=rows.filter(function(r){return r.day.slice(0,7)===monthKey;}),byDay={};
   monthRows.forEach(function(r){if(!byDay[r.day])byDay[r.day]={planned:0,completed:0,tasks:0};byDay[r.day][r.visit.visitStatus==='planned'?'planned':'completed']++;});
-  monthTasks.forEach(function(r){if(!byDay[r.due])byDay[r.due]={planned:0,completed:0,tasks:0};byDay[r.due].tasks++;});
   var planned=monthRows.filter(function(r){return r.visit.visitStatus==='planned';}).length,completed=monthRows.length-planned;
   document.getElementById('visit-month-label').textContent=monthStart.toLocaleDateString('en-US',{month:'long',year:'numeric'});
-  document.getElementById('visit-month-summary').textContent=monthRows.length+' visit'+(monthRows.length===1?'':'s')+' · '+planned+' planned · '+completed+' completed · '+monthTasks.length+' open task'+(monthTasks.length===1?'':'s')+' due';
+  document.getElementById('visit-month-summary').textContent=monthRows.length+' visit'+(monthRows.length===1?'':'s')+' · '+planned+' planned · '+completed+' completed';
   var calendar='<div class="visit-weekday">Sun</div><div class="visit-weekday">Mon</div><div class="visit-weekday">Tue</div><div class="visit-weekday">Wed</div><div class="visit-weekday">Thu</div><div class="visit-weekday">Fri</div><div class="visit-weekday">Sat</div>';
   var first=new Date(monthStart.getFullYear(),monthStart.getMonth(),1-monthStart.getDay()),today=localDateValue(new Date());
   for(var i=0;i<42;i++){
-    var d=new Date(first.getFullYear(),first.getMonth(),first.getDate()+i),value=localDateValue(d),counts=byDay[value]||{planned:0,completed:0,tasks:0};
+    var d=new Date(first.getFullYear(),first.getMonth(),first.getDate()+i),value=localDateValue(d),counts=byDay[value]||{planned:0,completed:0};
     var cls='visit-day'+(d.getMonth()!==monthStart.getMonth()?' outside':'')+(value===CAL_SELECTED?' selected':'')+(value===today?' today':'');
     var count=counts.completed+counts.planned?'<span class="visit-day-count">'+(counts.completed?counts.completed+' done':'')+'</span>'+(counts.planned?'<span class="visit-day-count planned">'+counts.planned+' planned</span>':''):'';
-    if(counts.tasks)count+='<span class="visit-day-count" style="color:var(--orange)">'+counts.tasks+' tasks</span>';
-    calendar+='<button class="'+cls+'" onclick="selectVisitDay(\''+value+'\')" aria-label="'+prettyVisitDate(value)+'; '+counts.completed+' completed, '+counts.planned+' planned, '+counts.tasks+' tasks due"><span class="visit-day-num">'+d.getDate()+'</span>'+count+'</button>';
+    calendar+='<button class="'+cls+'" onclick="selectVisitDay(\''+value+'\')" aria-label="'+prettyVisitDate(value)+'; '+counts.completed+' completed, '+counts.planned+' planned"><span class="visit-day-num">'+d.getDate()+'</span>'+count+'</button>';
   }
   document.getElementById('visit-calendar').innerHTML=calendar;
   document.getElementById('visit-agenda-title').textContent=prettyVisitDate(CAL_SELECTED);
   var dayRows=rows.filter(function(r){return r.day===CAL_SELECTED;}).sort(function(a,b){var sa=a.visit.visitStatus==='planned'?0:1,sb=b.visit.visitStatus==='planned'?0:1;return sa-sb||a.customer.name.localeCompare(b.customer.name);});
-  var dayTasks=tasks.filter(function(r){return r.due===CAL_SELECTED;});
-  document.getElementById('visit-agenda-count').textContent=(dayRows.length+dayTasks.length)?(dayRows.length+' visits · '+dayTasks.length+' tasks'):'';
-  var agenda=dayRows.map(visitMarkup).join('')+dayTasks.map(function(r){return taskMarkup(r,true);}).join('');
-  if(!agenda)agenda='<div class="visit-empty">No visits or tasks on this date.<br><button class="visit-add" style="margin-top:10px" onclick="openVisitMo(\''+l+'\',null,\''+CAL_SELECTED+'\',\'planned\')">＋ Schedule a visit</button> <button style="margin-top:10px" onclick="openTaskMo(\''+l+'\',null,\''+CAL_SELECTED+'\')">＋ Add task</button></div>';
+  document.getElementById('visit-agenda-count').textContent=dayRows.length?dayRows.length+' visits':'';
+  var agenda=dayRows.map(visitMarkup).join('');
+  if(!agenda)agenda='<div class="visit-empty">No visits on this date.<br><button class="visit-add" style="margin-top:10px" onclick="openVisitMo(\''+l+'\',null,\''+CAL_SELECTED+'\',\'planned\')">＋ Schedule a visit</button></div>';
   document.getElementById('visit-agenda-list').innerHTML=agenda;
 }
 function renderVisitHistory(){
